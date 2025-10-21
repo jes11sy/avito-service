@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Avito chats
+model Avito {
+  id              Int       @id @default(autoincrement())
+  chatId          String    @unique        // Уникальный ID чата от Avito
+  city            String?                  // Город
+  name            String?                  // Имя клиента
+  phone           String?                  // Телефон клиента
+  lastMessage     String?                  // Последнее сообщение
+  status          String?   @default("active")  // 'active', 'closed', 'archived'
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  orders          Order[]
+  messages        AvitoMessage[]
+  
+  @@map("avito")
+  @@index([chatId])
+  @@index([phone])
+}
+
+// Avito messages history
+model AvitoMessage {
+  id              Int       @id @default(autoincrement())
+  chatId          String                   // ID чата
+  messageId       String    @unique        // ID сообщения от Avito
+  direction       String                   // 'inbound' | 'outbound'
+  content         String                   // Текст сообщения
+  authorId        String?                  // ID автора (от Avito)
+  createdAt       DateTime  @default(now())
+  
+  chat            Avito     @relation(fields: [chatId], references: [chatId])
+  
+  @@map("avito_message")
+  @@index([chatId])
+  @@index([createdAt])
+}
+
+// Related models
+model Order {
+  id                    Int       @id @default(autoincrement())
+  rk                    String
+  city                  String
+  avitoName             String?
+  phone                 String
+  typeOrder             String
+  clientName            String
+  address               String
+  dateMeeting           String
+  typeEquipment         String
+  problem               String
+  callRecord            String?
+  statusOrder           String
+  masterId              Int?
+  result                Int?
+  expenditure           Int?
+  clean                 Int?
+  masterChange          Int?
+  bsoDoc                String?
+  expenditureDoc        String?
+  operatorNameId        Int
+  createDate            DateTime  @default(now())
+  closingData           String?
+  avitoChatId           String?
+  callId                String?
+  prepayment            Int?
+  dateClosmod           String?
+  comment               String?
+  cashSubmissionStatus  String?
+  cashSubmissionDate    DateTime?
+  cashSubmissionAmount  Int?
+  cashReceiptDoc        String?
+  cashApprovedBy        Int?
+  cashApprovedDate      DateTime?
+  directorId            Int?
+  callcentreAdminId     Int?
+  callcentreOperatorId  Int?
+  
+  avito                 Avito?               @relation(fields: [avitoChatId], references: [chatId])
+  
+  @@map("order")
+}
+
