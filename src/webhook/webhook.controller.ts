@@ -4,8 +4,8 @@ import { WebhookService } from './webhook.service';
 
 @ApiTags('webhook')
 @Controller('webhook')
-export class AvitoWebhookController {
-  private readonly logger = new Logger(AvitoWebhookController.name);
+export class WebhookController {
+  private readonly logger = new Logger(WebhookController.name);
 
   constructor(private webhookService: WebhookService) {}
 
