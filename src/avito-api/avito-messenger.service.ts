@@ -158,14 +158,25 @@ export class AvitoMessengerService {
   /**
    * Получить список чатов
    */
-  async getChats(): Promise<AvitoChat[]> {
+  async getChats(unreadOnly: boolean = false, limit?: number): Promise<AvitoChat[]> {
     const token = await this.getAccessToken();
 
     try {
+      const params: any = {};
+      
+      if (unreadOnly) {
+        params.unread_only = true;
+      }
+      
+      if (limit) {
+        params.limit = limit;
+      }
+
       const response = await this.axiosInstance.get(`/accounts/${this.userId}/chats`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        params,
       });
 
       return response.data.chats || [];

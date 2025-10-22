@@ -75,21 +75,12 @@ export class MessengerService {
   async getChats(avitoAccountName: string, unreadOnly: boolean = false, limit?: number) {
     try {
       const service = await this.getMessengerService(avitoAccountName);
-      const chats = await service.getChats();
+      // Pass unreadOnly and limit directly to Avito API
+      const chats = await service.getChats(unreadOnly, limit);
 
-      let filteredChats = chats;
-      
-      if (unreadOnly) {
-        // Filter for unread chats (this would need to be implemented based on your logic)
-        // For now, returning all chats
-        filteredChats = chats;
-      }
+      const filteredChats = chats;
 
-      if (limit) {
-        filteredChats = filteredChats.slice(0, limit);
-      }
-
-      // Map chats to include extracted avatar URLs
+      // Map chats to include extracted avatar URLs and format last_message
       const mappedChats = filteredChats.map(chat => {
         // Map users to extract avatar URLs
         const mappedUsers = chat.users.map(user => {
@@ -106,9 +97,20 @@ export class MessengerService {
           };
         });
 
+        // Map last_message to frontend format
+        const lastMessage = chat.last_message ? {
+          id: chat.last_message.id,
+          authorId: chat.last_message.author_id,
+          text: chat.last_message.content?.text || '',
+          created: chat.last_message.created,
+          direction: chat.last_message.direction,
+          type: chat.last_message.type,
+        } : undefined;
+
         return {
           ...chat,
           users: mappedUsers,
+          lastMessage: lastMessage,
         };
       });
 
