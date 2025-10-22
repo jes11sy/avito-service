@@ -275,6 +275,35 @@ export class AvitoMessengerService {
   }
 
   /**
+   * Получить информацию об объявлениях батчем
+   */
+  async getItemsInfo(itemIds: number[]): Promise<any> {
+    const token = await this.getAccessToken();
+
+    try {
+      const response = await axios.post(
+        `https://api.avito.ru/core/v1/items`,
+        {
+          item_ids: itemIds,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          httpsAgent: this.axiosInstance.defaults.httpsAgent,
+          httpAgent: this.axiosInstance.defaults.httpAgent,
+        }
+      );
+
+      return response.data.resources || [];
+    } catch (error: any) {
+      this.logger.error(`Failed to get items info: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
    * Установить статус "онлайн"
    */
   async setOnline(): Promise<void> {

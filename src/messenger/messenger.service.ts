@@ -80,6 +80,26 @@ export class MessengerService {
 
       const filteredChats = chats;
 
+      // Собираем все item_id для батч-запроса
+      const itemIds = filteredChats
+        .map(chat => chat.context?.value?.id)
+        .filter((id): id is number => typeof id === 'number');
+
+      // Получаем информацию об объявлениях батчем (если есть item_id)
+      let itemsMap = new Map<number, any>();
+      if (itemIds.length > 0) {
+        try {
+          const itemsInfo = await service.getItemsInfo(itemIds);
+          itemsInfo.forEach((item: any) => {
+            if (item.id) {
+              itemsMap.set(item.id, item);
+            }
+          });
+        } catch (e) {
+          this.logger.warn(`Failed to get items info: ${e}`);
+        }
+      }
+
       // Map chats to include extracted avatar URLs and format last_message
       const mappedChats = filteredChats.map(chat => {
         // Map users to extract avatar URLs
@@ -109,25 +129,18 @@ export class MessengerService {
         } : undefined;
 
         // Determine if chat has unread messages based on last_message
-        // Chat is unread if:
-        // 1. Last message is incoming (direction === 'in')
-        // 2. And it's not read (is_read === false or missing)
         const hasUnread = chat.last_message 
           && chat.last_message.direction === 'in' 
           && chat.last_message.is_read === false;
 
-        // Extract city from URL (e.g., https://avito.ru/moskva/... -> Москва)
+        // Extract city from items info (address field)
         let city = '';
-        if (chat.context?.value?.url) {
-          try {
-            const urlMatch = chat.context.value.url.match(/avito\.ru\/([^/]+)\//);
-            if (urlMatch && urlMatch[1]) {
-              // Capitalize first letter
-              const citySlug = urlMatch[1];
-              city = citySlug.charAt(0).toUpperCase() + citySlug.slice(1);
-            }
-          } catch (e) {
-            // Ignore parsing errors
+        const itemId = chat.context?.value?.id;
+        if (itemId && itemsMap.has(itemId)) {
+          const itemInfo = itemsMap.get(itemId);
+          if (itemInfo.address) {
+            // Берем первое слово из адреса (обычно это город)
+            city = itemInfo.address.split(',')[0].trim();
           }
         }
 
