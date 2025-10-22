@@ -19,7 +19,7 @@ interface AvitoTokenResponse {
   expires_in: number;
 }
 
-interface AvitoAccountInfo {
+export interface AvitoAccountInfo {
   id: number;
   name: string;
   email: string;
@@ -28,7 +28,7 @@ interface AvitoAccountInfo {
   profile_url: string;
 }
 
-interface AvitoBalance {
+export interface AvitoBalance {
   real: number;
   bonus: number;
 }

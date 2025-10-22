@@ -13,7 +13,7 @@ interface ProxyConfig {
   };
 }
 
-interface AvitoChat {
+export interface AvitoChat {
   id: string;
   context: {
     type: string;
@@ -24,7 +24,7 @@ interface AvitoChat {
   updated: string;
 }
 
-interface AvitoMessage {
+export interface AvitoMessage {
   id: string;
   type: string;
   direction: 'in' | 'out';
