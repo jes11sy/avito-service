@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AccountsModule } from './accounts/accounts.module';
 import { EternalOnlineModule } from './eternal-online/eternal-online.module';
+import { MessengerModule } from './messenger/messenger.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { EternalOnlineModule } from './eternal-online/eternal-online.module';
     AuthModule,
     AccountsModule,
     EternalOnlineModule,
+    MessengerModule,
   ],
 })
 export class AppModule {}
