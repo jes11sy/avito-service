@@ -65,6 +65,8 @@ export interface AvitoChat {
     created: number;
     direction: 'in' | 'out';
     type: string;
+    is_read?: boolean;
+    read?: number | null;
   };
 }
 

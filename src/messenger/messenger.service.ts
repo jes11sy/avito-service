@@ -105,12 +105,23 @@ export class MessengerService {
           created: chat.last_message.created,
           direction: chat.last_message.direction,
           type: chat.last_message.type,
+          isRead: chat.last_message.is_read !== false, // true если прочитано или undefined
         } : undefined;
+
+        // Determine if chat has unread messages based on last_message
+        // Chat is unread if:
+        // 1. Last message is incoming (direction === 'in')
+        // 2. And it's not read (is_read === false or missing)
+        const hasUnread = chat.last_message 
+          && chat.last_message.direction === 'in' 
+          && chat.last_message.is_read === false;
 
         return {
           ...chat,
           users: mappedUsers,
           lastMessage: lastMessage,
+          unreadCount: hasUnread ? 1 : undefined,
+          hasNewMessage: hasUnread,
         };
       });
 
@@ -175,17 +186,19 @@ export class MessengerService {
 
   async markChatAsRead(chatId: string, avitoAccountName: string) {
     try {
+      this.logger.log(`Marking chat ${chatId} as read for account ${avitoAccountName}`);
       const service = await this.getMessengerService(avitoAccountName);
       
       // Mark entire chat as read (no message ID needed)
       await service.markAsRead(chatId);
 
+      this.logger.log(`✅ Chat ${chatId} successfully marked as read`);
       return {
         success: true,
         message: 'Chat marked as read',
       };
     } catch (error: any) {
-      this.logger.error(`Failed to mark chat as read: ${error.message}`);
+      this.logger.error(`❌ Failed to mark chat as read: ${error.message}`, error.stack);
       throw error;
     }
   }

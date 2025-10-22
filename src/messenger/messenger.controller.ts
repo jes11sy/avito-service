@@ -37,11 +37,13 @@ export class MessengerController {
   async getChats(
     @Query('avitoAccountName') avitoAccountName: string,
     @Query('unreadOnly') unreadOnly?: string,
+    @Query('unread_only') unread_only?: string,
     @Query('limit') limit?: string,
   ) {
+    const isUnreadOnly = (unreadOnly === 'true') || (unread_only === 'true');
     return this.messengerService.getChats(
       avitoAccountName,
-      unreadOnly === 'true',
+      isUnreadOnly,
       limit ? parseInt(limit) : undefined,
     );
   }
