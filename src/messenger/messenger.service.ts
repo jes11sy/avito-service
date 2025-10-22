@@ -11,14 +11,12 @@ export class MessengerService {
 
   async getAccounts() {
     try {
-      const accounts = await this.prisma.avitoAccount.findMany({
-        where: { status: 'active' },
+      const accounts = await this.prisma.avito.findMany({
         select: {
           id: true,
           name: true,
           userId: true,
-          status: true,
-          city: true,
+          connectionStatus: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -42,7 +40,7 @@ export class MessengerService {
     }
 
     // Find account in database
-    const account = await this.prisma.avitoAccount.findUnique({
+    const account = await this.prisma.avito.findUnique({
       where: { name: avitoAccountName },
     });
 
@@ -54,9 +52,9 @@ export class MessengerService {
     const proxyConfig = account.proxyHost ? {
       host: account.proxyHost,
       port: account.proxyPort!,
-      protocol: account.proxyProtocol as any,
-      auth: account.proxyUsername ? {
-        username: account.proxyUsername,
+      protocol: account.proxyType as any,
+      auth: account.proxyLogin ? {
+        username: account.proxyLogin,
         password: account.proxyPassword!,
       } : undefined,
     } : undefined;
@@ -64,7 +62,7 @@ export class MessengerService {
     const messengerService = new AvitoMessengerService(
       account.clientId,
       account.clientSecret,
-      account.userId,
+      parseInt(account.userId || '0'),
       proxyConfig,
     );
 
@@ -103,23 +101,24 @@ export class MessengerService {
 
   async getMessages(chatId: string, limit: number = 100) {
     try {
-      // Get account name from chatId (you may need to adjust this logic)
-      const chat = await this.prisma.avitoChat.findUnique({
-        where: { id: chatId },
-        include: { account: true },
-      });
-
-      if (!chat) {
-        throw new NotFoundException('Chat not found');
+      // Since we don't have avitoChat table, we need to get avitoAccountName from query params
+      // The frontend should pass it. For now, try to get it from cache or return error
+      // This is a workaround - ideally frontend should pass avitoAccountName
+      
+      // Try all cached services to find messages
+      for (const [accountName, service] of this.messengerServices) {
+        try {
+          const messages = await service.getMessages(chatId, limit);
+          return {
+            success: true,
+            data: messages,
+          };
+        } catch {
+          // Continue to next service
+        }
       }
 
-      const service = await this.getMessengerService(chat.account.name);
-      const messages = await service.getMessages(chatId, limit);
-
-      return {
-        success: true,
-        data: messages,
-      };
+      throw new NotFoundException('Messages not found. Please select an Avito account first.');
     } catch (error: any) {
       this.logger.error(`Failed to get messages: ${error.message}`);
       throw error;
@@ -173,9 +172,7 @@ export class MessengerService {
 
   async registerWebhooksForAll(webhookUrl: string) {
     try {
-      const accounts = await this.prisma.avitoAccount.findMany({
-        where: { status: 'active' },
-      });
+      const accounts = await this.prisma.avito.findMany();
 
       const results = await Promise.allSettled(
         accounts.map(async (account) => {
