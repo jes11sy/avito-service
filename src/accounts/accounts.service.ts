@@ -16,11 +16,11 @@ export class AccountsService {
    * Получить все аккаунты
    */
   async getAccounts() {
-    const accounts = await this.prisma.avitoAccount.findMany({
+    const accounts = await this.prisma.avito.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
-          select: { chats: true },
+          select: { calls: true, orders: true },
         },
       },
     });
@@ -35,12 +35,16 @@ export class AccountsService {
    * Получить аккаунт по ID
    */
   async getAccount(id: number) {
-    const account = await this.prisma.avitoAccount.findUnique({
+    const account = await this.prisma.avito.findUnique({
       where: { id },
       include: {
-        chats: {
+        calls: {
           take: 10,
-          orderBy: { updatedAt: 'desc' },
+          orderBy: { createdAt: 'desc' },
+        },
+        orders: {
+          take: 10,
+          orderBy: { createDate: 'desc' },
         },
       },
     });
@@ -59,7 +63,7 @@ export class AccountsService {
    * Создать аккаунт
    */
   async createAccount(dto: CreateAccountDto) {
-    const account = await this.prisma.avitoAccount.create({
+    const account = await this.prisma.avito.create({
       data: {
         name: dto.name,
         clientId: dto.clientId,
@@ -94,7 +98,7 @@ export class AccountsService {
    * Обновить аккаунт
    */
   async updateAccount(id: number, dto: UpdateAccountDto) {
-    const account = await this.prisma.avitoAccount.update({
+    const account = await this.prisma.avito.update({
       where: { id },
       data: {
         ...(dto.name && { name: dto.name }),
@@ -127,7 +131,7 @@ export class AccountsService {
    * Удалить аккаунт
    */
   async deleteAccount(id: number) {
-    await this.prisma.avitoAccount.delete({
+    await this.prisma.avito.delete({
       where: { id },
     });
 
@@ -148,7 +152,7 @@ export class AccountsService {
    */
   async checkConnection(accountId: number) {
     const apiClient = await this.getApiClient(accountId);
-    const account = await this.prisma.avitoAccount.findUnique({ where: { id: accountId } });
+    const account = await this.prisma.avito.findUnique({ where: { id: accountId } });
 
     let connectionStatus = 'disconnected';
     let proxyStatus = 'not_checked';
@@ -166,7 +170,7 @@ export class AccountsService {
       connectionStatus = 'error';
     }
 
-    await this.prisma.avitoAccount.update({
+    await this.prisma.avito.update({
       where: { id: accountId },
       data: {
         connectionStatus,
@@ -188,7 +192,7 @@ export class AccountsService {
    */
   async syncAccountStats(accountId: number) {
     const apiClient = await this.getApiClient(accountId);
-    const account = await this.prisma.avitoAccount.findUnique({ where: { id: accountId } });
+    const account = await this.prisma.avito.findUnique({ where: { id: accountId } });
 
     try {
       const [balance, accountInfo] = await Promise.all([
@@ -201,7 +205,7 @@ export class AccountsService {
         itemsStats = await apiClient.getItemsStats(parseInt(account.userId));
       }
 
-      await this.prisma.avitoAccount.update({
+      await this.prisma.avito.update({
         where: { id: accountId },
         data: {
           accountBalance: balance.real + balance.bonus,
@@ -249,7 +253,7 @@ export class AccountsService {
    * Инициализировать клиенты для аккаунта
    */
   private initializeClients(accountId: number) {
-    const account = this.prisma.avitoAccount.findUniqueOrThrow({ where: { id: accountId } });
+    const account = this.prisma.avito.findUniqueOrThrow({ where: { id: accountId } });
 
     account.then((acc) => {
       const proxyConfig = acc.proxyHost

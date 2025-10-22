@@ -10,6 +10,17 @@ import { RolesGuard, Roles, UserRole } from '../auth/roles.guard';
 export class AccountsController {
   constructor(private accountsService: AccountsService) {}
 
+  @Get('health')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Health check endpoint' })
+  async health() {
+    return {
+      success: true,
+      message: 'Avito Service is healthy',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()

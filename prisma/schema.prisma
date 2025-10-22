@@ -7,26 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Avito Accounts (credentials для работы с API)
-model AvitoAccount {
+// Avito accounts - точно как в рабочей схеме
+model Avito {
   id                      Int       @id @default(autoincrement())
-  name                    String    @unique        // Название аккаунта
+  name                    String    @unique
   clientId                String    @map("client_id")
   clientSecret            String    @map("client_secret")
-  userId                  String?   @map("user_id")
-  
-  // Proxy settings
-  proxyType               String?   @map("proxy_type")      // 'http', 'https', 'socks4', 'socks5'
+  proxyType               String?   @map("proxy_type")
   proxyHost               String?   @map("proxy_host")
   proxyPort               Int?      @map("proxy_port")
   proxyLogin              String?   @map("proxy_login")
   proxyPassword           String?   @map("proxy_password")
-  
-  // Status tracking
   connectionStatus        String?   @default("not_checked") @map("connection_status")
   proxyStatus             String?   @default("not_checked") @map("proxy_status")
-  
-  // Statistics
   accountBalance          Float?    @default(0) @map("account_balance")
   adsCount                Int?      @default(0) @map("ads_count")
   viewsCount              Int?      @default(0) @map("views_count")
@@ -34,105 +27,112 @@ model AvitoAccount {
   viewsToday              Int?      @default(0) @map("views_today")
   contactsToday           Int?      @default(0) @map("contacts_today")
   lastSyncAt              DateTime? @map("last_sync_at")
-  
-  // Eternal Online
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+  userId                  String?   @map("user_id")
   eternalOnlineEnabled    Boolean?  @default(false) @map("eternal_online_enabled")
   isOnline                Boolean?  @default(false) @map("is_online")
   lastOnlineCheck         DateTime? @map("last_online_check")
-  onlineKeepAliveInterval Int?      @default(300) @map("online_keep_alive_interval")  // seconds
-  
-  createdAt               DateTime  @default(now()) @map("created_at")
-  updatedAt               DateTime  @updatedAt @map("updated_at")
-  
-  chats                   AvitoChat[] @relation("AccountChats")
-  
-  @@map("avito_account")
-  @@index([name])
+  onlineKeepAliveInterval Int?      @default(300) @map("online_keep_alive_interval")
+  calls                   Call[]  @relation("AvitoCalls")
+  orders                  Order[] @relation("AvitoOrders")
+
+  @@map("avito")
 }
 
-// Avito chats
-model AvitoChat {
-  id              Int       @id @default(autoincrement())
-  chatId          String    @unique @map("chat_id")    // Уникальный ID чата от Avito
-  accountId       Int?      @map("account_id")          // Связь с аккаунтом
-  city            String?                               // Город
-  name            String?                               // Имя клиента
-  phone           String?                               // Телефон клиента
-  lastMessage     String?   @map("last_message")        // Последнее сообщение
-  status          String?   @default("active")          // 'active', 'closed', 'archived'
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  
-  account         AvitoAccount? @relation("AccountChats", fields: [accountId], references: [id])
-  orders          Order[]
-  messages        AvitoMessage[]
-  
-  @@map("avito_chat")
-  @@index([chatId])
-  @@index([phone])
-  @@index([accountId])
+model Phone {
+  id        Int      @id @default(autoincrement())
+  number    String   @unique
+  rk        String
+  city      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  avitoName String?  @map("avito_name")
+  calls     Call[]
+
+  @@map("phones")
 }
 
-// Avito messages history
-model AvitoMessage {
-  id              Int       @id @default(autoincrement())
-  chatId          String    @map("chat_id")             // ID чата
-  messageId       String    @unique @map("message_id")  // ID сообщения от Avito
-  direction       String                                // 'inbound' | 'outbound'
-  content         String                                // Текст сообщения
-  authorId        String?   @map("author_id")           // ID автора (от Avito)
-  createdAt       DateTime  @default(now()) @map("created_at")
-  
-  chat            AvitoChat @relation(fields: [chatId], references: [chatId])
-  
-  @@map("avito_message")
-  @@index([chatId])
-  @@index([createdAt])
-}
-
-// Related models
 model Order {
-  id                    Int       @id @default(autoincrement())
-  rk                    String
-  city                  String
-  avitoName             String?
-  phone                 String
-  typeOrder             String
-  clientName            String
-  address               String
-  dateMeeting           String
-  typeEquipment         String
-  problem               String
-  callRecord            String?
-  statusOrder           String
-  masterId              Int?
-  result                Int?
-  expenditure           Int?
-  clean                 Int?
-  masterChange          Int?
-  bsoDoc                String?
-  expenditureDoc        String?
-  operatorNameId        Int
-  createDate            DateTime  @default(now())
-  closingData           String?
-  avitoChatId           String?
-  callId                String?
-  prepayment            Int?
-  dateClosmod           String?
-  comment               String?
-  cashSubmissionStatus  String?
-  cashSubmissionDate    DateTime?
-  cashSubmissionAmount  Int?
-  cashReceiptDoc        String?
-  cashApprovedBy        Int?
-  cashApprovedDate      DateTime?
-  directorId            Int?
-  callcentreAdminId     Int?
-  callcentreOperatorId  Int?
+  id             Int                @id @default(autoincrement())
+  rk             String
+  city           String
+  avitoName      String?            @map("avito_name")
+  phone          String
+  typeOrder      String             @map("type_order")
+  clientName     String             @map("client_name")
+  address        String
+  dateMeeting    DateTime           @map("date_meeting")
+  typeEquipment  String             @map("type_equipment")
+  problem        String
+  callRecord     String?            @map("call_record")
+  statusOrder    String             @map("status_order")
+  masterId       Int?               @map("master_id")
+  result         Decimal?           @db.Decimal(10, 2)
+  expenditure    Decimal?           @db.Decimal(10, 2)
+  clean          Decimal?           @db.Decimal(10, 2)
+  masterChange   Decimal?           @map("master_change") @db.Decimal(10, 2)
+  bsoDoc         String?            @map("bso_doc")
+  expenditureDoc String?            @map("expenditure_doc")
+  operatorNameId Int                @map("operator_name_id")
+  createDate     DateTime           @map("create_date")
+  closingData    DateTime?          @map("closing_data")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  avitoChatId    String?            @map("avito_chatid")
+  callId         String?            @map("call_id")
+  prepayment     Decimal?           @db.Decimal(10, 2)
+  dateClosmod    DateTime?          @map("date_closmod")
+  comment        String?
+  cashSubmissionStatus String?      @default("Готово") @map("cash_submission_status")
+  cashSubmissionDate   DateTime?    @map("cash_submission_date")
+  cashSubmissionAmount Decimal?     @map("cash_submission_amount") @db.Decimal(10, 2)
+  cashReceiptDoc       String?      @map("cash_receipt_doc")
+  cashApprovedBy       Int?         @map("cash_approved_by")
+  cashApprovedDate     DateTime?    @map("cash_approved_date")
+  avito          Avito?             @relation("AvitoOrders", fields: [avitoName], references: [name])
   
-  avitoChat             AvitoChat?           @relation(fields: [avitoChatId], references: [chatId])
-  
-  @@map("order")
+  @@index([statusOrder, city])
+  @@index([closingData])
+  @@index([masterId, city, closingData])
+  @@index([phone])
+  @@index([createDate, city])
+  @@index([operatorNameId])
+  @@index([createDate])
+  @@index([avitoName])
+  @@map("orders")
+}
+
+model Call {
+  id                   Int                @id @default(autoincrement())
+  rk                   String
+  city                 String
+  avitoName            String?            @map("avito_name")
+  phoneClient          String             @map("phone_client")
+  phoneAts             String             @map("phone_ats")
+  dateCreate           DateTime           @map("date_create")
+  operatorId           Int                @map("operator_id")
+  status               String
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  recordingEmailSent   Boolean            @default(false) @map("recording_email_sent")
+  recordingPath        String?            @map("recording_path")
+  recordingProcessedAt DateTime?          @map("recording_processed_at")
+  callId               String?            @unique @map("call_id")
+  duration             Int?
+  recordUrl            String?            @map("record_url")
+  mangoData            Json?              @map("mango_data")
+  avito                Avito?             @relation("AvitoCalls", fields: [avitoName], references: [name])
+  phone                Phone              @relation(fields: [phoneAts], references: [number])
+
+  @@index([city])
+  @@index([dateCreate])
+  @@index([operatorId])
+  @@index([phoneClient])
+  @@index([phoneAts])
+  @@index([avitoName])
+  @@index([callId])
+  @@map("calls")
 }
 
 

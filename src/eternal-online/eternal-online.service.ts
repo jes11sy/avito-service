@@ -20,7 +20,7 @@ export class EternalOnlineService {
   async maintainOnlineStatus() {
     this.logger.log('Running eternal online check...');
 
-    const accounts = await this.prisma.avitoAccount.findMany({
+    const accounts = await this.prisma.avito.findMany({
       where: {
         eternalOnlineEnabled: true,
       },
@@ -47,7 +47,7 @@ export class EternalOnlineService {
    */
   async setAccountOnline(accountId: number) {
     try {
-      const account = await this.prisma.avitoAccount.findUnique({
+      const account = await this.prisma.avito.findUnique({
         where: { id: accountId },
       });
 
@@ -70,7 +70,7 @@ export class EternalOnlineService {
       await messengerClient.setOnline();
 
       // Обновляем статус в БД
-      await this.prisma.avitoAccount.update({
+      await this.prisma.avito.update({
         where: { id: accountId },
         data: {
           isOnline: true,
@@ -83,7 +83,7 @@ export class EternalOnlineService {
       this.logger.error(`Failed to set account ${accountId} online: ${error.message}`);
 
       // Обновляем статус как offline в случае ошибки
-      await this.prisma.avitoAccount.update({
+      await this.prisma.avito.update({
         where: { id: accountId },
         data: {
           isOnline: false,
@@ -96,7 +96,7 @@ export class EternalOnlineService {
    * Включить "вечный онлайн" для аккаунта
    */
   async enableEternalOnline(accountId: number, interval: number = 300) {
-    await this.prisma.avitoAccount.update({
+    await this.prisma.avito.update({
       where: { id: accountId },
       data: {
         eternalOnlineEnabled: true,
@@ -119,7 +119,7 @@ export class EternalOnlineService {
    * Отключить "вечный онлайн" для аккаунта
    */
   async disableEternalOnline(accountId: number) {
-    await this.prisma.avitoAccount.update({
+    await this.prisma.avito.update({
       where: { id: accountId },
       data: {
         eternalOnlineEnabled: false,
