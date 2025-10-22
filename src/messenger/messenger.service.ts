@@ -80,26 +80,6 @@ export class MessengerService {
 
       const filteredChats = chats;
 
-      // Собираем все item_id для батч-запроса
-      const itemIds = filteredChats
-        .map(chat => chat.context?.value?.id)
-        .filter((id): id is number => typeof id === 'number');
-
-      // Получаем информацию об объявлениях батчем (если есть item_id)
-      let itemsMap = new Map<number, any>();
-      if (itemIds.length > 0) {
-        try {
-          const itemsInfo = await service.getItemsInfo(itemIds);
-          itemsInfo.forEach((item: any) => {
-            if (item.id) {
-              itemsMap.set(item.id, item);
-            }
-          });
-        } catch (e) {
-          this.logger.warn(`Failed to get items info: ${e}`);
-        }
-      }
-
       // Map chats to include extracted avatar URLs and format last_message
       const mappedChats = filteredChats.map(chat => {
         // Map users to extract avatar URLs
@@ -133,16 +113,11 @@ export class MessengerService {
           && chat.last_message.direction === 'in' 
           && chat.last_message.is_read === false;
 
-        // Extract city from items info (address field)
-        let city = '';
-        const itemId = chat.context?.value?.id;
-        if (itemId && itemsMap.has(itemId)) {
-          const itemInfo = itemsMap.get(itemId);
-          if (itemInfo.address) {
-            // Берем первое слово из адреса (обычно это город)
-            city = itemInfo.address.split(',')[0].trim();
-          }
-        }
+        // Extract city from location (same as old backend)
+        const city = chat.context?.value?.location?.title 
+          || chat.context?.value?.location?.city_name 
+          || chat.context?.value?.location?.region_name 
+          || 'Не указан';
 
         return {
           ...chat,
