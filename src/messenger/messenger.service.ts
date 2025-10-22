@@ -116,12 +116,29 @@ export class MessengerService {
           && chat.last_message.direction === 'in' 
           && chat.last_message.is_read === false;
 
+        // Extract city from URL (e.g., https://avito.ru/moskva/... -> Москва)
+        let city = '';
+        if (chat.context?.value?.url) {
+          try {
+            const urlMatch = chat.context.value.url.match(/avito\.ru\/([^/]+)\//);
+            if (urlMatch && urlMatch[1]) {
+              // Capitalize first letter
+              const citySlug = urlMatch[1];
+              city = citySlug.charAt(0).toUpperCase() + citySlug.slice(1);
+            }
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+
         return {
           ...chat,
           users: mappedUsers,
           lastMessage: lastMessage,
           unreadCount: hasUnread ? 1 : undefined,
           hasNewMessage: hasUnread,
+          city: city,
+          avitoAccountName: avitoAccountName,
         };
       });
 
