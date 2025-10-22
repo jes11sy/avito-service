@@ -24,7 +24,7 @@ export class AccountsController {
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN, UserRole.DIRECTOR)
+  @Roles(UserRole.ADMIN, UserRole.DIRECTOR, UserRole.OPERATOR)
   @ApiOperation({ summary: 'Get all Avito accounts' })
   async getAccounts() {
     return this.accountsService.getAccounts();
@@ -33,7 +33,7 @@ export class AccountsController {
   @Get(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN, UserRole.DIRECTOR)
+  @Roles(UserRole.ADMIN, UserRole.DIRECTOR)
   @ApiOperation({ summary: 'Get account by ID' })
   async getAccount(@Param('id', ParseIntPipe) id: number) {
     return this.accountsService.getAccount(id);
@@ -42,7 +42,7 @@ export class AccountsController {
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Create Avito account' })
   async createAccount(@Body() dto: CreateAccountDto) {
     return this.accountsService.createAccount(dto);
@@ -51,7 +51,7 @@ export class AccountsController {
   @Put(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update account' })
   async updateAccount(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAccountDto) {
     return this.accountsService.updateAccount(id, dto);
@@ -60,7 +60,7 @@ export class AccountsController {
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Delete account' })
   async deleteAccount(@Param('id', ParseIntPipe) id: number) {
     return this.accountsService.deleteAccount(id);
@@ -69,7 +69,7 @@ export class AccountsController {
   @Post(':id/check-connection')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Check API and proxy connection' })
   async checkConnection(@Param('id', ParseIntPipe) id: number) {
@@ -79,7 +79,7 @@ export class AccountsController {
   @Post(':id/sync-stats')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Sync account statistics' })
   async syncStats(@Param('id', ParseIntPipe) id: number) {

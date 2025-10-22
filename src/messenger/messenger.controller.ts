@@ -23,7 +23,7 @@ export class MessengerController {
   @Get('accounts')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_OPERATOR, UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get all Avito accounts for messenger' })
   async getAccounts() {
     return this.messengerService.getAccounts();
@@ -32,7 +32,7 @@ export class MessengerController {
   @Get('chats')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_OPERATOR, UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get chats for account' })
   async getChats(
     @Query('avitoAccountName') avitoAccountName: string,
@@ -49,7 +49,7 @@ export class MessengerController {
   @Get('chats/:chatId/messages')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_OPERATOR, UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get messages for chat' })
   async getMessages(
     @Param('chatId') chatId: string,
@@ -61,7 +61,7 @@ export class MessengerController {
   @Post('chats/:chatId/messages')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_OPERATOR, UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Send message to chat' })
   async sendMessage(
@@ -74,7 +74,7 @@ export class MessengerController {
   @Post('chats/:chatId/read')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_OPERATOR, UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark chat as read' })
   async markChatAsRead(
@@ -87,7 +87,7 @@ export class MessengerController {
   @Get('voice-files')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_OPERATOR, UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get voice files for account' })
   async getVoiceFiles(@Query('avitoAccountName') avitoAccountName: string) {
     return this.messengerService.getVoiceFiles(avitoAccountName);
@@ -96,7 +96,7 @@ export class MessengerController {
   @Post('webhook/register-all')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Register webhooks for all accounts' })
   async registerWebhooks(@Body() body: { webhookUrl: string }) {

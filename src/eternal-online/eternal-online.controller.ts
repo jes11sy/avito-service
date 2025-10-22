@@ -12,7 +12,7 @@ export class EternalOnlineController {
   @Post('accounts/:accountId/enable')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Enable eternal online for account' })
   async enableEternalOnline(
@@ -25,7 +25,7 @@ export class EternalOnlineController {
   @Post('accounts/:accountId/disable')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Disable eternal online for account' })
   async disableEternalOnline(@Param('accountId', ParseIntPipe) accountId: number) {
@@ -35,7 +35,7 @@ export class EternalOnlineController {
   @Post('accounts/:accountId/set-online')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.CALLCENTRE_ADMIN)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Manually set account online' })
   async setAccountOnline(@Param('accountId', ParseIntPipe) accountId: number) {
