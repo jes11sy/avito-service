@@ -33,3 +33,6 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/avito-service:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/avito-service:buildcache,mode=max
 
+
+
+

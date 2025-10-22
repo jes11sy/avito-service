@@ -23,7 +23,7 @@ export class AvitoService {
       where.phone = { contains: phone };
     }
 
-    const chats = await this.prisma.avito.findMany({
+    const chats = await this.prisma.avitoChat.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
       include: {
@@ -41,7 +41,7 @@ export class AvitoService {
   }
 
   async getChat(chatId: string) {
-    const chat = await this.prisma.avito.findUnique({
+    const chat = await this.prisma.avitoChat.findUnique({
       where: { chatId },
       include: {
         messages: {
@@ -82,7 +82,7 @@ export class AvitoService {
   }
 
   async createChat(dto: CreateAvitoDto) {
-    const chat = await this.prisma.avito.create({
+    const chat = await this.prisma.avitoChat.create({
       data: {
         chatId: dto.chatId,
         city: dto.city,
@@ -100,7 +100,7 @@ export class AvitoService {
   }
 
   async updateChat(chatId: string, dto: UpdateAvitoDto) {
-    const chat = await this.prisma.avito.update({
+    const chat = await this.prisma.avitoChat.update({
       where: { chatId },
       data: {
         ...(dto.city && { city: dto.city }),
@@ -119,7 +119,7 @@ export class AvitoService {
   }
 
   async getChatsByPhone(phone: string) {
-    const chats = await this.prisma.avito.findMany({
+    const chats = await this.prisma.avitoChat.findMany({
       where: {
         phone: { contains: phone },
       },
@@ -137,4 +137,6 @@ export class AvitoService {
     };
   }
 }
+
+
 

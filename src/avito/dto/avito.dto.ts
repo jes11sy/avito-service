@@ -49,3 +49,6 @@ export class UpdateAvitoDto {
   lastMessage?: string;
 }
 
+
+
+

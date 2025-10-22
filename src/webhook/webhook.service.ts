@@ -25,7 +25,7 @@ export class WebhookService {
 
   private async handleNewChat(chatId: string, user: any) {
     // Создаем или обновляем чат
-    const existingChat = await this.prisma.avito.findUnique({
+    const existingChat = await this.prisma.avitoChat.findUnique({
       where: { chatId },
     });
 
@@ -33,7 +33,7 @@ export class WebhookService {
       return { success: true, message: 'Chat already exists' };
     }
 
-    const chat = await this.prisma.avito.create({
+    const chat = await this.prisma.avitoChat.create({
       data: {
         chatId,
         name: user?.name,
@@ -53,12 +53,12 @@ export class WebhookService {
 
   private async handleNewMessage(chatId: string, message: any, user: any) {
     // Создаем или обновляем чат
-    let chat = await this.prisma.avito.findUnique({
+    let chat = await this.prisma.avitoChat.findUnique({
       where: { chatId },
     });
 
     if (!chat) {
-      chat = await this.prisma.avito.create({
+      chat = await this.prisma.avitoChat.create({
         data: {
           chatId,
           name: user?.name,
@@ -83,7 +83,7 @@ export class WebhookService {
     });
 
     // Обновляем последнее сообщение в чате
-    await this.prisma.avito.update({
+    await this.prisma.avitoChat.update({
       where: { chatId },
       data: {
         lastMessage: message.text || message.content,
@@ -100,4 +100,6 @@ export class WebhookService {
     };
   }
 }
+
+
 

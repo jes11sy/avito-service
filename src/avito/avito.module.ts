@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AvitoController } from './avito.controller';
-import { AvitoMessengerController } from './avito-messenger.controller';
 import { AvitoService } from './avito.service';
+import { AccountsModule } from '../accounts/accounts.module';
 
 @Module({
-  controllers: [AvitoController, AvitoMessengerController],
+  imports: [AccountsModule],
+  controllers: [AvitoController],
   providers: [AvitoService],
   exports: [AvitoService],
 })
