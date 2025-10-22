@@ -54,8 +54,9 @@ export class MessengerController {
   async getMessages(
     @Param('chatId') chatId: string,
     @Query('limit') limit?: string,
+    @Query('avitoAccountName') avitoAccountName?: string,
   ) {
-    return this.messengerService.getMessages(chatId, limit ? parseInt(limit) : 100);
+    return this.messengerService.getMessages(chatId, avitoAccountName, limit ? parseInt(limit) : 100);
   }
 
   @Post('chats/:chatId/messages')

@@ -89,9 +89,32 @@ export class MessengerService {
         filteredChats = filteredChats.slice(0, limit);
       }
 
+      // Map chats to include extracted avatar URLs
+      const mappedChats = filteredChats.map(chat => {
+        // Map users to extract avatar URLs
+        const mappedUsers = chat.users.map(user => {
+          // Extract avatar URL (prefer 64x64, fallback to default or other sizes)
+          const avatar = user.public_user_profile?.avatar?.images?.['64x64'] 
+            || user.public_user_profile?.avatar?.images?.['128x128']
+            || user.public_user_profile?.avatar?.images?.['48x48']
+            || user.public_user_profile?.avatar?.default;
+
+          return {
+            id: user.id,
+            name: user.name,
+            avatar: avatar,
+          };
+        });
+
+        return {
+          ...chat,
+          users: mappedUsers,
+        };
+      });
+
       return {
         success: true,
-        data: filteredChats,
+        data: mappedChats,
       };
     } catch (error: any) {
       this.logger.error(`Failed to get chats: ${error.message}`);
@@ -99,13 +122,20 @@ export class MessengerService {
     }
   }
 
-  async getMessages(chatId: string, limit: number = 100) {
+  async getMessages(chatId: string, avitoAccountName?: string, limit: number = 100) {
     try {
-      // Since we don't have avitoChat table, we need to get avitoAccountName from query params
-      // The frontend should pass it. For now, try to get it from cache or return error
-      // This is a workaround - ideally frontend should pass avitoAccountName
-      
-      // Try all cached services to find messages
+      if (avitoAccountName) {
+        // Use specified account
+        const service = await this.getMessengerService(avitoAccountName);
+        const messages = await service.getMessages(chatId, limit);
+        
+        return {
+          success: true,
+          data: messages,
+        };
+      }
+
+      // If no account specified, try all cached services
       for (const [accountName, service] of this.messengerServices) {
         try {
           const messages = await service.getMessages(chatId, limit);
@@ -118,7 +148,7 @@ export class MessengerService {
         }
       }
 
-      throw new NotFoundException('Messages not found. Please select an Avito account first.');
+      throw new NotFoundException('Messages not found. Please provide avitoAccountName parameter.');
     } catch (error: any) {
       this.logger.error(`Failed to get messages: ${error.message}`);
       throw error;
@@ -145,11 +175,8 @@ export class MessengerService {
     try {
       const service = await this.getMessengerService(avitoAccountName);
       
-      // Get last message ID to mark as read
-      const messages = await service.getMessages(chatId, 1);
-      if (messages.length > 0) {
-        await service.markAsRead(chatId, messages[0].id);
-      }
+      // Mark entire chat as read (no message ID needed)
+      await service.markAsRead(chatId);
 
       return {
         success: true,

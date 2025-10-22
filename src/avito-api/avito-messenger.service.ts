@@ -17,11 +17,55 @@ export interface AvitoChat {
   id: string;
   context: {
     type: string;
-    value: string;
+    value: {
+      id: number;
+      title: string;
+      price_string?: string;
+      url: string;
+      images?: {
+        main?: {
+          '140x105'?: string;
+        };
+      };
+      status_id?: number;
+    };
   };
-  users: any[];
-  created: string;
-  updated: string;
+  users: Array<{
+    id: number;
+    name: string;
+    public_user_profile?: {
+      avatar?: {
+        default?: string;
+        images?: {
+          '24x24'?: string;
+          '36x36'?: string;
+          '48x48'?: string;
+          '64x64'?: string;
+          '72x72'?: string;
+          '96x96'?: string;
+          '128x128'?: string;
+          '192x192'?: string;
+          '256x256'?: string;
+        };
+      };
+      url?: string;
+      user_id?: number;
+      item_id?: number;
+    };
+  }>;
+  created: number;
+  updated: number;
+  last_message?: {
+    id: string;
+    author_id: number;
+    content: {
+      text?: string;
+      [key: string]: any;
+    };
+    created: number;
+    direction: 'in' | 'out';
+    type: string;
+  };
 }
 
 export interface AvitoMessage {
@@ -132,14 +176,15 @@ export class AvitoMessengerService {
   }
 
   /**
-   * Получить сообщения чата
+   * Получить сообщения чата (v3 API)
    */
   async getMessages(chatId: string, limit: number = 100): Promise<AvitoMessage[]> {
     const token = await this.getAccessToken();
 
     try {
-      const response = await this.axiosInstance.get(
-        `/accounts/${this.userId}/chats/${chatId}/messages`,
+      // Use v3 API endpoint
+      const response = await axios.get(
+        `https://api.avito.ru/messenger/v3/accounts/${this.userId}/chats/${chatId}/messages/`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -147,10 +192,12 @@ export class AvitoMessengerService {
           params: {
             limit,
           },
+          httpsAgent: this.axiosInstance.defaults.httpsAgent,
+          httpAgent: this.axiosInstance.defaults.httpAgent,
         }
       );
 
-      return response.data.messages || [];
+      return response.data || [];
     } catch (error: any) {
       this.logger.error(`Failed to get messages: ${error.message}`);
       throw error;
@@ -188,25 +235,28 @@ export class AvitoMessengerService {
   }
 
   /**
-   * Отметить сообщение как прочитанное
+   * Отметить чат как прочитанный (v1 API)
    */
-  async markAsRead(chatId: string, messageId: string): Promise<void> {
+  async markAsRead(chatId: string): Promise<void> {
     const token = await this.getAccessToken();
 
     try {
-      await this.axiosInstance.post(
-        `/accounts/${this.userId}/chats/${chatId}/messages/${messageId}/read`,
+      // Use v1 API endpoint for marking chat as read
+      await axios.post(
+        `https://api.avito.ru/messenger/v1/accounts/${this.userId}/chats/${chatId}/read`,
         {},
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          httpsAgent: this.axiosInstance.defaults.httpsAgent,
+          httpAgent: this.axiosInstance.defaults.httpAgent,
         }
       );
 
-      this.logger.log(`Message ${messageId} marked as read`);
+      this.logger.log(`Chat ${chatId} marked as read`);
     } catch (error: any) {
-      this.logger.error(`Failed to mark as read: ${error.message}`);
+      this.logger.error(`Failed to mark chat as read: ${error.message}`);
       throw error;
     }
   }
