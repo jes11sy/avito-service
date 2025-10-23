@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Logger, HttpCode, HttpStatus, Inject } from '@nestjs/common';
+import { Controller, Post, Body, Logger, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { SOCKET_IO_PROVIDER } from '../providers/socket-io.provider';
+import axios from 'axios';
 
 interface AvitoWebhookEvent {
   id: string;
@@ -28,22 +28,7 @@ interface AvitoWebhookEvent {
 @Controller('webhooks/avito')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
-
-  constructor(
-    @Inject(SOCKET_IO_PROVIDER) private socketIOWrapper: any,
-  ) {
-    // Initialize Socket.IO connection on module load
-    this.initializeSocket();
-  }
-
-  private async initializeSocket() {
-    try {
-      await this.socketIOWrapper.getSocket();
-      this.logger.log('✅ Socket.IO client initialized');
-    } catch (error) {
-      this.logger.warn('⚠️ Socket.IO initialization warning:', error?.message);
-    }
-  }
+  private realtimeServiceUrl = process.env.REALTIME_SERVICE_URL || 'http://realtime-service.crm:5009';
 
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -99,7 +84,6 @@ export class WebhookController {
       isIncoming: isIncomingMessage,
     });
 
-    // Broadcast to all connected operators via Socket.IO
     try {
       const messageData = {
         chatId: value.chat_id,
@@ -118,11 +102,10 @@ export class WebhookController {
           userId: value.user_id
         }
       };
-      
-      // Emit new message event
-      this.socketIOWrapper.emit('avito-new-message', messageData);
-      
-      // Emit chat update event
+
+      // Send to realtime-service via HTTP
+      await this.broadcastViaRealtime('avito-new-message', messageData);
+
       const chatUpdateData = {
         chatId: value.chat_id,
         hasNewMessage: isIncomingMessage,
@@ -138,12 +121,11 @@ export class WebhookController {
         updated: value.created,
         isNewChat: false
       };
-      
-      this.socketIOWrapper.emit('avito-chat-updated', chatUpdateData);
-      
-      // If incoming message, also emit notification
+
+      await this.broadcastViaRealtime('avito-chat-updated', chatUpdateData);
+
       if (isIncomingMessage) {
-        this.socketIOWrapper.emit('avito-notification', {
+        await this.broadcastViaRealtime('avito-notification', {
           type: 'new_message',
           chatId: value.chat_id,
           messageId: value.id,
@@ -151,10 +133,30 @@ export class WebhookController {
           timestamp: Date.now()
         });
       }
-      
-      this.logger.log('✅ Broadcasted new message event');
+
+      this.logger.log('✅ Sent events to realtime-service');
     } catch (error) {
       this.logger.error('Error broadcasting message:', error);
+    }
+  }
+
+  private async broadcastViaRealtime(event: string, data: any) {
+    try {
+      const url = `${this.realtimeServiceUrl}/api/v1/broadcast/avito-event`;
+      this.logger.debug(`📤 Sending ${event} to realtime-service:`, url);
+      
+      await axios.post(url, {
+        event,
+        data,
+        token: process.env.WEBHOOK_TOKEN
+      }, {
+        timeout: 5000
+      });
+      
+      this.logger.debug(`✅ Event ${event} sent to realtime-service`);
+    } catch (error: any) {
+      this.logger.warn(`⚠️ Failed to send ${event} to realtime-service:`, error.message);
+      // Don't throw - we still need to respond with 200 to Avito
     }
   }
 }
