@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { AccountsModule } from './accounts/accounts.module';
 import { EternalOnlineModule } from './eternal-online/eternal-online.module';
 import { MessengerModule } from './messenger/messenger.module';
+import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { MessengerModule } from './messenger/messenger.module';
     AccountsModule,
     EternalOnlineModule,
     MessengerModule,
+    WebhookModule,
   ],
 })
 export class AppModule {}
