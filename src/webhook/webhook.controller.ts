@@ -86,7 +86,7 @@ export class WebhookController {
     // For now, this just logs the message
     // The actual Socket.IO broadcasting should be handled by the messenger service
     
-    this.logger.info('✅ Processed new message:', {
+    this.logger.log('✅ Processed new message:', {
       chatId: value.chat_id,
       messageId: value.id,
       direction,
