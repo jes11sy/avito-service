@@ -341,7 +341,7 @@ export class AvitoMessengerService {
       });
       
       const response = await this.axiosInstance.post(
-        `/messenger/v3/webhook`,
+        `/webhook`,
         { url: webhookUrl }
       );
       
