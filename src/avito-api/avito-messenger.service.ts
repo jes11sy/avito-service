@@ -143,6 +143,10 @@ export class AvitoMessengerService {
     }
 
     try {
+      this.logger.debug(`🔐 Requesting access token for userId: ${this.userId}`, {
+        clientId: this.clientId?.substring(0, 10) + '...',
+      });
+
       const response = await axios.post(
         'https://api.avito.ru/token',
         new URLSearchParams({
@@ -158,9 +162,14 @@ export class AvitoMessengerService {
       );
 
       this.accessToken = response.data.access_token;
+      this.logger.debug(`✅ Access token obtained for userId: ${this.userId}`);
       return this.accessToken;
     } catch (error: any) {
-      this.logger.error(`Failed to get access token: ${error.message}`);
+      this.logger.error(`❌ Failed to get access token for userId: ${this.userId}`, {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
       throw error;
     }
   }

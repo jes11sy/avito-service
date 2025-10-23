@@ -59,6 +59,13 @@ export class MessengerService {
       } : undefined,
     } : undefined;
 
+    this.logger.debug(`📋 Creating AvitoMessengerService for account: ${account.name}`, {
+      clientId: account.clientId?.substring(0, 10) + '...',
+      userId: account.userId,
+      userIdType: typeof account.userId,
+      userIdParsed: parseInt(account.userId || '0'),
+    });
+
     const messengerService = new AvitoMessengerService(
       account.clientId,
       account.clientSecret,
