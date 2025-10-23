@@ -305,5 +305,46 @@ export class AvitoMessengerService {
       // Не бросаем ошибку, так как это не критично
     }
   }
+
+  /**
+   * Register webhook URL for notifications
+   */
+  async registerWebhook(webhookUrl: string): Promise<boolean> {
+    try {
+      this.logger.log(`📡 Attempting to register webhook for user ${this.userId}`, {
+        webhookUrl,
+        userId: this.userId
+      });
+      
+      const response = await this.axiosInstance.post(
+        `/messenger/v3/webhook`,
+        { url: webhookUrl }
+      );
+      
+      this.logger.log(`📨 Webhook API response:`, {
+        status: response.status,
+        data: response.data,
+        userId: this.userId
+      });
+      
+      const success = response.data.ok === true;
+      
+      if (success) {
+        this.logger.log(`✅ Webhook registered successfully for user ${this.userId}`);
+      } else {
+        this.logger.warn(`⚠️ Webhook registration response: ${JSON.stringify(response.data)}`);
+      }
+      
+      return success;
+    } catch (error: any) {
+      this.logger.error(`❌ Failed to register webhook:`, {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        userId: this.userId
+      });
+      throw error;
+    }
+  }
 }
 

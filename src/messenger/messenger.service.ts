@@ -221,18 +221,60 @@ export class MessengerService {
     try {
       const accounts = await this.prisma.avito.findMany();
 
+      if (accounts.length === 0) {
+        this.logger.warn('No Avito accounts found for webhook registration');
+        return {
+          success: true,
+          message: 'No accounts to register',
+          data: [],
+        };
+      }
+
+      this.logger.log(`🔗 Registering webhook for ${accounts.length} accounts. URL: ${webhookUrl}`);
+
       const results = await Promise.allSettled(
         accounts.map(async (account) => {
-          // Implement webhook registration logic here
-          // This would call Avito API to register webhook
-          return { accountName: account.name, success: true };
+          try {
+            this.logger.log(`📡 Registering webhook for account: ${account.name}`);
+            
+            // Get the messenger service for this account
+            const messengerService = await this.getMessengerService(account.name);
+            
+            // Register webhook via Avito API
+            const success = await messengerService.registerWebhook(webhookUrl);
+            
+            if (success) {
+              this.logger.log(`✅ Webhook registered successfully for ${account.name}`);
+            } else {
+              this.logger.warn(`⚠️ Webhook registration may have failed for ${account.name}`);
+            }
+            
+            return { 
+              accountName: account.name, 
+              success,
+              timestamp: new Date().toISOString()
+            };
+          } catch (error: any) {
+            this.logger.error(`❌ Failed to register webhook for ${account.name}:`, error.message);
+            return {
+              accountName: account.name,
+              success: false,
+              error: error.message,
+              timestamp: new Date().toISOString()
+            };
+          }
         })
       );
 
+      const successful = results.filter(r => r.status === 'fulfilled' && (r.value as any).success).length;
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !(r.value as any).success)).length;
+
+      this.logger.log(`🎯 Webhook registration completed. Success: ${successful}, Failed: ${failed}`);
+
       return {
-        success: true,
-        message: 'Webhooks registered',
-        data: results,
+        success: successful > 0,
+        message: `Webhook registration completed: ${successful} success, ${failed} failed`,
+        data: results.map(r => r.status === 'fulfilled' ? r.value : { error: (r as any).reason }),
       };
     } catch (error: any) {
       this.logger.error(`Failed to register webhooks: ${error.message}`);
