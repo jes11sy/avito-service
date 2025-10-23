@@ -31,7 +31,19 @@ export class WebhookController {
 
   constructor(
     @Inject(SOCKET_IO_PROVIDER) private socketIOWrapper: any,
-  ) {}
+  ) {
+    // Initialize Socket.IO connection on module load
+    this.initializeSocket();
+  }
+
+  private async initializeSocket() {
+    try {
+      await this.socketIOWrapper.getSocket();
+      this.logger.log('✅ Socket.IO client initialized');
+    } catch (error) {
+      this.logger.warn('⚠️ Socket.IO initialization warning:', error?.message);
+    }
+  }
 
   @Post()
   @HttpCode(HttpStatus.OK)
