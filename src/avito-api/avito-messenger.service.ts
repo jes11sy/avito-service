@@ -94,9 +94,10 @@ export interface AvitoMessage {
 @Injectable()
 export class AvitoMessengerService {
   private readonly logger = new Logger(AvitoMessengerService.name);
-  private readonly baseUrl = 'https://api.avito.ru/messenger/v2';
+  private readonly baseUrl = 'https://api.avito.ru/messenger';
   private axiosInstance: AxiosInstance;
   private accessToken: string | null = null;
+  private tokenExpiresAt: Date | null = null;
 
   constructor(
     private clientId: string,
@@ -153,7 +154,7 @@ export class AvitoMessengerService {
   }
 
   async getAccessToken(): Promise<string> {
-    if (this.accessToken) {
+    if (this.accessToken && this.tokenExpiresAt && new Date() < this.tokenExpiresAt) {
       return this.accessToken;
     }
 
@@ -177,6 +178,7 @@ export class AvitoMessengerService {
       );
 
       this.accessToken = response.data.access_token;
+      this.tokenExpiresAt = new Date(Date.now() + response.data.expires_in * 1000);
       this.logger.debug(`✅ Access token obtained for userId: ${this.userId}`);
       return this.accessToken;
     } catch (error: any) {
@@ -206,7 +208,7 @@ export class AvitoMessengerService {
         params.limit = limit;
       }
 
-      const response = await this.axiosInstance.get(`/accounts/${this.userId}/chats`, {
+      const response = await this.axiosInstance.get(`/v2/accounts/${this.userId}/chats`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -257,7 +259,7 @@ export class AvitoMessengerService {
 
     try {
       const response = await this.axiosInstance.post(
-        `/accounts/${this.userId}/chats/${chatId}/messages`,
+        `/v2/accounts/${this.userId}/chats/${chatId}/messages`,
         {
           type: 'text',
           message: {
@@ -314,7 +316,7 @@ export class AvitoMessengerService {
 
     try {
       await this.axiosInstance.post(
-        `/accounts/${this.userId}/status/online`,
+        `/v2/accounts/${this.userId}/status/online`,
         {},
         {
           headers: {
@@ -341,7 +343,7 @@ export class AvitoMessengerService {
       });
       
       const response = await this.axiosInstance.post(
-        `/webhook`,
+        `/v3/webhook`,
         { url: webhookUrl }
       );
       
