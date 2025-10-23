@@ -1,5 +1,7 @@
-import { Controller, Post, Body, Logger, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Logger, HttpCode, HttpStatus, Inject } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Server } from 'socket.io';
+import { SOCKET_IO_PROVIDER } from '../providers/socket-io.provider';
 
 interface AvitoWebhookEvent {
   id: string;
@@ -27,6 +29,10 @@ interface AvitoWebhookEvent {
 @Controller('webhooks/avito')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
+
+  constructor(
+    @Inject(SOCKET_IO_PROVIDER) private io: Server,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -82,14 +88,69 @@ export class WebhookController {
       isIncoming: isIncomingMessage,
     });
 
-    // Here we would emit Socket.IO events if we had access to Socket.IO
-    // For now, this just logs the message
-    // The actual Socket.IO broadcasting should be handled by the messenger service
-    
-    this.logger.log('✅ Processed new message:', {
-      chatId: value.chat_id,
-      messageId: value.id,
-      direction,
-    });
+    // Broadcast to all connected operators via Socket.IO
+    try {
+      const connectedClients = this.io.sockets.sockets.size;
+      
+      this.logger.log(`📡 Broadcasting to ${connectedClients} connected clients`);
+      
+      const messageData = {
+        chatId: value.chat_id,
+        message: {
+          id: value.id,
+          authorId: value.author_id,
+          content: value.content,
+          created: value.created,
+          direction: direction,
+          type: value.type,
+          chatType: value.chat_type,
+          itemId: value.item_id,
+          publishedAt: value.published_at,
+          read: value.read,
+          isRead: !isIncomingMessage,
+          userId: value.user_id
+        }
+      };
+      
+      // Emit new message event
+      this.io.emit('avito-new-message', messageData);
+      
+      // Emit chat update event
+      const chatUpdateData = {
+        chatId: value.chat_id,
+        hasNewMessage: isIncomingMessage,
+        unreadCount: isIncomingMessage ? 1 : 0,
+        message: messageData.message,
+        lastMessage: {
+          id: value.id,
+          content: value.content,
+          created: value.created,
+          direction: direction,
+          type: value.type
+        },
+        updated: value.created,
+        isNewChat: false
+      };
+      
+      this.io.emit('avito-chat-updated', chatUpdateData);
+      
+      // If incoming message, also emit notification
+      if (isIncomingMessage) {
+        this.io.emit('avito-notification', {
+          type: 'new_message',
+          chatId: value.chat_id,
+          messageId: value.id,
+          message: messageData.message,
+          timestamp: Date.now()
+        });
+      }
+      
+      this.logger.log('✅ Broadcasted new message event to operators:', {
+        connectedClients,
+        isIncoming: isIncomingMessage,
+      });
+    } catch (error) {
+      this.logger.error('Error broadcasting message:', error);
+    }
   }
 }
