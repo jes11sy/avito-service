@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Logger, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import axios from 'axios';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface AvitoWebhookEvent {
   id: string;
