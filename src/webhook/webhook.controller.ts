@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Logger, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import axios from 'axios';
+import { PrismaService } from '@/prisma/prisma.service';
 
 interface AvitoWebhookEvent {
   id: string;
@@ -29,6 +30,8 @@ interface AvitoWebhookEvent {
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
   private realtimeServiceUrl = process.env.REALTIME_SERVICE_URL || 'http://realtime-service.crm:5009';
+
+  constructor(private prisma: PrismaService) {}
 
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -85,8 +88,15 @@ export class WebhookController {
     });
 
     try {
+      // 📌 Получаем имя аккаунта из БД по userId
+      const account = await this.prisma.avito.findFirst({
+        where: { userId: String(value.user_id) }
+      });
+      const accountName = account?.name || 'Unknown Account';
+
       const messageData = {
         chatId: value.chat_id,
+        accountName: accountName,  // ← добавляем имя аккаунта
         message: {
           id: value.id,
           authorId: value.author_id,
@@ -108,6 +118,7 @@ export class WebhookController {
 
       const chatUpdateData = {
         chatId: value.chat_id,
+        accountName: accountName,  // ← добавляем тут тоже
         hasNewMessage: isIncomingMessage,
         unreadCount: isIncomingMessage ? 1 : 0,
         message: messageData.message,
@@ -129,6 +140,7 @@ export class WebhookController {
           type: 'new_message',
           chatId: value.chat_id,
           messageId: value.id,
+          accountName: accountName,  // ← и тут
           message: messageData.message,
           timestamp: Date.now()
         });
