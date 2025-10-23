@@ -26,7 +26,7 @@ export class WebhookRegistrationService implements OnModuleInit {
   }
 
   /**
-   * Register webhooks every 6 hours (0 */6 * * *)
+   * Register webhooks every 6 hours
    */
   @Cron(CronExpression.EVERY_6_HOURS)
   async handleWebhookRegistrationCron() {
