@@ -1,6 +1,5 @@
 import { Controller, Post, Body, Logger, HttpCode, HttpStatus, Inject } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { Server } from 'socket.io';
 import { SOCKET_IO_PROVIDER } from '../providers/socket-io.provider';
 
 interface AvitoWebhookEvent {
@@ -31,7 +30,7 @@ export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
 
   constructor(
-    @Inject(SOCKET_IO_PROVIDER) private io: Server,
+    @Inject(SOCKET_IO_PROVIDER) private socketIOWrapper: any,
   ) {}
 
   @Post()
@@ -90,10 +89,6 @@ export class WebhookController {
 
     // Broadcast to all connected operators via Socket.IO
     try {
-      const connectedClients = this.io.sockets.sockets.size;
-      
-      this.logger.log(`📡 Broadcasting to ${connectedClients} connected clients`);
-      
       const messageData = {
         chatId: value.chat_id,
         message: {
@@ -113,7 +108,7 @@ export class WebhookController {
       };
       
       // Emit new message event
-      this.io.emit('avito-new-message', messageData);
+      this.socketIOWrapper.emit('avito-new-message', messageData);
       
       // Emit chat update event
       const chatUpdateData = {
@@ -132,11 +127,11 @@ export class WebhookController {
         isNewChat: false
       };
       
-      this.io.emit('avito-chat-updated', chatUpdateData);
+      this.socketIOWrapper.emit('avito-chat-updated', chatUpdateData);
       
       // If incoming message, also emit notification
       if (isIncomingMessage) {
-        this.io.emit('avito-notification', {
+        this.socketIOWrapper.emit('avito-notification', {
           type: 'new_message',
           chatId: value.chat_id,
           messageId: value.id,
@@ -145,10 +140,7 @@ export class WebhookController {
         });
       }
       
-      this.logger.log('✅ Broadcasted new message event to operators:', {
-        connectedClients,
-        isIncoming: isIncomingMessage,
-      });
+      this.logger.log('✅ Broadcasted new message event');
     } catch (error) {
       this.logger.error('Error broadcasting message:', error);
     }
