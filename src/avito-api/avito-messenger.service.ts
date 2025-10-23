@@ -134,7 +134,22 @@ export class AvitoMessengerService {
       }
     }
 
-    return axios.create(config);
+    const instance = axios.create(config);
+
+    // Add request interceptor for automatic token refresh
+    instance.interceptors.request.use(async (cfg) => {
+      try {
+        const token = await this.getAccessToken();
+        if (token) {
+          cfg.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        this.logger.error('Failed to get access token for request', error);
+      }
+      return cfg;
+    });
+
+    return instance;
   }
 
   async getAccessToken(): Promise<string> {
