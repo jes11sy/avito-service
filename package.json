@@ -1,7 +1,7 @@
 {
   "name": "avito-service",
   "version": "1.0.0",
-  "description": "Avito chats and webhook integration microservice",
+  "description": "Avito chats and webhook integration microservice - Test webhook deployment 2025-01-24",
   "author": "",
   "private": true,
   "license": "MIT",
