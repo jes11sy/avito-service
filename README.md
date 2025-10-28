@@ -84,7 +84,8 @@
 
 ### Webhook
 
-- `POST /api/v1/webhook/avito` - Вебхук от Avito Messenger
+- `POST /api/v1/webhooks/avito` - Вебхук от Avito Messenger (основной)
+- Совместимость: `POST /api/v1/webhook/avito` также принимается (alias)
 
 ## Environment Variables
 
