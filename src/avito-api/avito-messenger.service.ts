@@ -252,14 +252,14 @@ export class AvitoMessengerService {
   }
 
   /**
-   * Отправить сообщение (v3 API)
+   * Отправить сообщение (v1 API)
    */
   async sendMessage(chatId: string, text: string): Promise<any> {
     const token = await this.getAccessToken();
 
     try {
       const response = await axios.post(
-        `https://api.avito.ru/messenger/v3/accounts/${this.userId}/chats/${chatId}/messages`,
+        `https://api.avito.ru/messenger/v1/accounts/${this.userId}/chats/${chatId}/messages`,
         {
           type: 'text',
           message: {
@@ -276,10 +276,10 @@ export class AvitoMessengerService {
         }
       );
 
-      this.logger.log(`Message sent to chat ${chatId}`);
+      this.logger.log(`✅ Message sent to chat ${chatId}`);
       return response.data;
     } catch (error: any) {
-      this.logger.error(`Failed to send message: ${error.message}`, {
+      this.logger.error(`❌ Failed to send message: ${error.message}`, {
         status: error.response?.status,
         data: error.response?.data,
       });
