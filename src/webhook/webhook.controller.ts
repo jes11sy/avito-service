@@ -38,12 +38,13 @@ export class WebhookController {
   @ApiOperation({ summary: 'Handle incoming Avito Messenger webhook' })
   async handleWebhook(@Body() event: AvitoWebhookEvent) {
     try {
-      this.logger.debug('📨 Received Avito webhook:', {
-        id: event.id,
-        type: event.payload.type,
-        chatId: event.payload.value.chat_id,
-        messageId: event.payload.value.id,
-      });
+      this.logger.log('📨 ===== RECEIVED AVITO WEBHOOK =====');
+      this.logger.log('📨 Webhook ID:', event.id);
+      this.logger.log('📨 Webhook Type:', event.payload.type);
+      this.logger.log('📨 Chat ID:', event.payload.value.chat_id);
+      this.logger.log('📨 Message ID:', event.payload.value.id);
+      this.logger.log('📨 Full event:', JSON.stringify(event, null, 2));
+      this.logger.log('📨 =====================================');
 
       // Immediately respond with 200 OK (requirement from Avito)
       // Process asynchronously
@@ -155,9 +156,13 @@ export class WebhookController {
   private async broadcastViaRealtime(event: string, data: any) {
     try {
       const url = `${this.realtimeServiceUrl}/api/v1/broadcast/avito-event`;
-      this.logger.debug(`📤 Sending ${event} to realtime-service:`, url);
+      this.logger.log(`📤 ===== BROADCASTING TO REALTIME SERVICE =====`);
+      this.logger.log(`📤 URL: ${url}`);
+      this.logger.log(`📤 Event: ${event}`);
+      this.logger.log(`📤 Data keys: ${Object.keys(data).join(', ')}`);
+      this.logger.log(`📤 Has WEBHOOK_TOKEN: ${process.env.WEBHOOK_TOKEN ? 'Yes' : 'No'}`);
       
-      await axios.post(url, {
+      const response = await axios.post(url, {
         event,
         data,
         token: process.env.WEBHOOK_TOKEN
@@ -165,9 +170,15 @@ export class WebhookController {
         timeout: 5000
       });
       
-      this.logger.debug(`✅ Event ${event} sent to realtime-service`);
+      this.logger.log(`✅ Event ${event} sent successfully. Response:`, response.data);
+      this.logger.log(`✅ ==========================================`);
     } catch (error: any) {
-      this.logger.warn(`⚠️ Failed to send ${event} to realtime-service:`, error.message);
+      this.logger.error(`❌ ===== FAILED TO SEND TO REALTIME SERVICE =====`);
+      this.logger.error(`❌ Event: ${event}`);
+      this.logger.error(`❌ Error message: ${error.message}`);
+      this.logger.error(`❌ Status: ${error.response?.status}`);
+      this.logger.error(`❌ Response data:`, error.response?.data);
+      this.logger.error(`❌ ================================================`);
       // Don't throw - we still need to respond with 200 to Avito
     }
   }
