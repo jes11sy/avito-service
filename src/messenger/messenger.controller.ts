@@ -51,7 +51,7 @@ export class MessengerController {
   @Get('chats/:chatId/messages')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.OPERATOR, UserRole.ADMIN, UserRole.DIRECTOR)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN, UserRole.DIRECTOR, UserRole.MASTER)
   @ApiOperation({ summary: 'Get messages for chat' })
   async getMessages(
     @Param('chatId') chatId: string,
@@ -64,7 +64,7 @@ export class MessengerController {
   @Post('chats/:chatId/messages')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.OPERATOR, UserRole.ADMIN, UserRole.DIRECTOR)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN, UserRole.DIRECTOR, UserRole.MASTER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Send message to chat' })
   async sendMessage(
@@ -77,7 +77,7 @@ export class MessengerController {
   @Post('chats/:chatId/read')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
-  @Roles(UserRole.OPERATOR, UserRole.ADMIN, UserRole.DIRECTOR)
+  @Roles(UserRole.OPERATOR, UserRole.ADMIN, UserRole.DIRECTOR, UserRole.MASTER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark chat as read' })
   async markChatAsRead(
