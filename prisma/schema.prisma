@@ -5,6 +5,19 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Connection pool configured via DATABASE_URL query parameters:
+  // ?connection_limit=50 - Maximum number of connections in pool
+  // ?pool_timeout=20 - Timeout in seconds for acquiring connection
+  // ?connect_timeout=10 - Timeout in seconds for establishing connection
+  // ?socket_timeout=30 - Timeout in seconds for socket operations
+  //
+  // Example:
+  // DATABASE_URL="postgresql://user:pass@host:5432/db?connection_limit=50&pool_timeout=20&connect_timeout=10"
+  //
+  // Recommended settings:
+  // - Development: connection_limit=10
+  // - Production (low load): connection_limit=20-30
+  // - Production (high load): connection_limit=50-100
 }
 
 // Avito accounts - точно как в рабочей схеме

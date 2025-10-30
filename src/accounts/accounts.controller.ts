@@ -4,20 +4,51 @@ import { AuthGuard } from '@nestjs/passport';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto, UpdateAccountDto } from './dto/account.dto';
 import { RolesGuard, Roles, UserRole } from '../auth/roles.guard';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('accounts')
 @Controller('accounts')
 export class AccountsController {
-  constructor(private accountsService: AccountsService) {}
+  constructor(
+    private accountsService: AccountsService,
+    private prisma: PrismaService,
+  ) {}
 
   @Get('health')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Health check endpoint' })
   async health() {
+    const dbHealthy = await this.prisma.healthCheck();
+    const dbStats = this.prisma.getStats();
+    
     return {
       success: true,
       message: 'Avito Service is healthy',
       timestamp: new Date().toISOString(),
+      database: {
+        healthy: dbHealthy,
+        ...dbStats,
+      },
+    };
+  }
+
+  @Get('stats/database')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get database statistics and connection pool info' })
+  async getDatabaseStats() {
+    const stats = this.prisma.getStats();
+    const healthy = await this.prisma.healthCheck();
+    
+    return {
+      success: true,
+      data: {
+        healthy,
+        ...stats,
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 
