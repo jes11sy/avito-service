@@ -1,13 +1,28 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { LRUCache } from 'lru-cache';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvitoMessengerService } from '../avito-api/avito-messenger.service';
+import { EncryptionService } from '../common/encryption.service';
+import { SafeLogger } from '../common/safe-logger.service';
 
 @Injectable()
 export class MessengerService {
-  private readonly logger = new Logger(MessengerService.name);
-  private messengerServices: Map<string, AvitoMessengerService> = new Map();
+  private readonly logger;
+  private messengerServices: LRUCache<string, AvitoMessengerService>;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private encryption: EncryptionService,
+    private safeLogger: SafeLogger,
+  ) {
+    this.logger = this.safeLogger.createContextLogger(MessengerService.name);
+    
+    // Use LRU cache instead of Map
+    this.messengerServices = new LRUCache<string, AvitoMessengerService>({
+      max: 50,
+      ttl: 1000 * 60 * 60, // 1 hour
+    });
+  }
 
   async getAccounts() {
     try {
@@ -35,8 +50,9 @@ export class MessengerService {
 
   private async getMessengerService(avitoAccountName: string): Promise<AvitoMessengerService> {
     // Check cache
-    if (this.messengerServices.has(avitoAccountName)) {
-      return this.messengerServices.get(avitoAccountName)!;
+    const cached = this.messengerServices.get(avitoAccountName);
+    if (cached) {
+      return cached;
     }
 
     // Find account in database
@@ -48,6 +64,12 @@ export class MessengerService {
       throw new NotFoundException(`Avito account ${avitoAccountName} not found`);
     }
 
+    // Decrypt sensitive data
+    const decryptedClientSecret = await this.encryption.decryptIfNeeded(account.clientSecret);
+    const decryptedProxyPassword = account.proxyPassword
+      ? await this.encryption.decryptIfNeeded(account.proxyPassword)
+      : null;
+
     // Create messenger service instance
     const proxyConfig = account.proxyHost ? {
       host: account.proxyHost,
@@ -55,20 +77,15 @@ export class MessengerService {
       protocol: account.proxyType as any,
       auth: account.proxyLogin ? {
         username: account.proxyLogin,
-        password: account.proxyPassword!,
+        password: decryptedProxyPassword!,
       } : undefined,
     } : undefined;
 
-    this.logger.debug(`📋 Creating AvitoMessengerService for account: ${account.name}`, {
-      clientId: account.clientId?.substring(0, 10) + '...',
-      userId: account.userId,
-      userIdType: typeof account.userId,
-      userIdParsed: parseInt(account.userId || '0'),
-    });
+    this.logger.debug(`Creating AvitoMessengerService for account: ${account.name}`);
 
     const messengerService = new AvitoMessengerService(
       account.clientId,
-      account.clientSecret,
+      decryptedClientSecret,
       parseInt(account.userId || '0'),
       proxyConfig,
     );

@@ -1,33 +1,87 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, OnModuleDestroy } from '@nestjs/common';
+import { LRUCache } from 'lru-cache';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvitoApiService } from '../avito-api/avito-api.service';
 import { AvitoMessengerService } from '../avito-api/avito-messenger.service';
 import { CreateAccountDto, UpdateAccountDto } from './dto/account.dto';
+import { EncryptionService } from '../common/encryption.service';
+import { SafeLogger } from '../common/safe-logger.service';
 
 @Injectable()
-export class AccountsService {
-  private readonly logger = new Logger(AccountsService.name);
-  private apiClients: Map<number, AvitoApiService> = new Map();
-  private messengerClients: Map<number, AvitoMessengerService> = new Map();
+export class AccountsService implements OnModuleDestroy {
+  private readonly logger;
+  
+  // Use LRU cache instead of Map to prevent memory leaks
+  private apiClients: LRUCache<number, AvitoApiService>;
+  private messengerClients: LRUCache<number, AvitoMessengerService>;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private encryption: EncryptionService,
+    private safeLogger: SafeLogger,
+  ) {
+    this.logger = this.safeLogger.createContextLogger(AccountsService.name);
+    
+    // Initialize LRU caches with limits
+    this.apiClients = new LRUCache<number, AvitoApiService>({
+      max: 100, // Maximum 100 clients in memory
+      ttl: 1000 * 60 * 60, // 1 hour TTL
+      dispose: (client) => {
+        // Cleanup when item is evicted
+        this.logger.debug('API client evicted from cache');
+      },
+    });
+    
+    this.messengerClients = new LRUCache<number, AvitoMessengerService>({
+      max: 100,
+      ttl: 1000 * 60 * 60,
+      dispose: (client) => {
+        this.logger.debug('Messenger client evicted from cache');
+      },
+    });
+  }
+
+  /**
+   * Cleanup on module destroy
+   */
+  async onModuleDestroy() {
+    this.logger.log('Cleaning up account clients...');
+    this.apiClients.clear();
+    this.messengerClients.clear();
+  }
 
   /**
    * Получить все аккаунты
+   * Optimized: Single query instead of N+1
    */
   async getAccounts() {
-    const accounts = await this.prisma.avito.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: {
-          select: { calls: true, orders: true },
-        },
-      },
-    });
+    // Use raw query to avoid N+1 problem
+    const accountsWithCounts = await this.prisma.$queryRaw<any[]>`
+      SELECT 
+        a.*,
+        COUNT(DISTINCT c.id)::int as calls_count,
+        COUNT(DISTINCT o.id)::int as orders_count
+      FROM avito a
+      LEFT JOIN calls c ON c.avito_name = a.name
+      LEFT JOIN orders o ON o.avito_name = a.name
+      GROUP BY a.id
+      ORDER BY a.created_at DESC
+    `;
+
+    // Decrypt sensitive fields before returning
+    const decryptedAccounts = await Promise.all(
+      accountsWithCounts.map(async (account) => ({
+        ...account,
+        clientSecret: await this.encryption.decryptIfNeeded(account.client_secret),
+        proxyPassword: account.proxy_password 
+          ? await this.encryption.decryptIfNeeded(account.proxy_password)
+          : null,
+      }))
+    );
 
     return {
       success: true,
-      data: accounts,
+      data: decryptedAccounts,
     };
   }
 
@@ -63,34 +117,45 @@ export class AccountsService {
    * Создать аккаунт
    */
   async createAccount(dto: CreateAccountDto) {
+    // Encrypt sensitive data before storing
+    const encryptedClientSecret = await this.encryption.encrypt(dto.clientSecret);
+    const encryptedProxyPassword = dto.proxyPassword 
+      ? await this.encryption.encrypt(dto.proxyPassword)
+      : null;
+
     const account = await this.prisma.avito.create({
       data: {
         name: dto.name,
         clientId: dto.clientId,
-        clientSecret: dto.clientSecret,
+        clientSecret: encryptedClientSecret,
         userId: dto.userId,
         proxyType: dto.proxyType,
         proxyHost: dto.proxyHost,
         proxyPort: dto.proxyPort,
         proxyLogin: dto.proxyLogin,
-        proxyPassword: dto.proxyPassword,
+        proxyPassword: encryptedProxyPassword,
         eternalOnlineEnabled: dto.eternalOnlineEnabled || false,
         onlineKeepAliveInterval: dto.onlineKeepAliveInterval || 300,
       },
     });
 
-    // Инициализируем клиенты
-    this.initializeClients(account.id);
+    // Инициализируем клиенты (now properly async)
+    await this.initializeClients(account.id);
 
     // Проверяем подключение
     await this.checkConnection(account.id);
 
     this.logger.log(`Account created: ${account.name} (ID: ${account.id})`);
 
+    // Return account with decrypted secrets for response
     return {
       success: true,
       message: 'Account created successfully',
-      data: account,
+      data: {
+        ...account,
+        clientSecret: dto.clientSecret, // Return original, not encrypted
+        proxyPassword: dto.proxyPassword,
+      },
     };
   }
 
@@ -98,25 +163,40 @@ export class AccountsService {
    * Обновить аккаунт
    */
   async updateAccount(id: number, dto: UpdateAccountDto) {
+    // Prepare encrypted data
+    const updateData: any = {};
+    
+    if (dto.name) updateData.name = dto.name;
+    if (dto.clientId) updateData.clientId = dto.clientId;
+    if (dto.clientSecret) {
+      updateData.clientSecret = await this.encryption.encrypt(dto.clientSecret);
+    }
+    if (dto.userId) updateData.userId = dto.userId;
+    if (dto.proxyType !== undefined) updateData.proxyType = dto.proxyType;
+    if (dto.proxyHost !== undefined) updateData.proxyHost = dto.proxyHost;
+    if (dto.proxyPort !== undefined) updateData.proxyPort = dto.proxyPort;
+    if (dto.proxyLogin !== undefined) updateData.proxyLogin = dto.proxyLogin;
+    if (dto.proxyPassword !== undefined) {
+      updateData.proxyPassword = dto.proxyPassword 
+        ? await this.encryption.encrypt(dto.proxyPassword)
+        : null;
+    }
+    if (dto.eternalOnlineEnabled !== undefined) {
+      updateData.eternalOnlineEnabled = dto.eternalOnlineEnabled;
+    }
+    if (dto.onlineKeepAliveInterval !== undefined) {
+      updateData.onlineKeepAliveInterval = dto.onlineKeepAliveInterval;
+    }
+
     const account = await this.prisma.avito.update({
       where: { id },
-      data: {
-        ...(dto.name && { name: dto.name }),
-        ...(dto.clientId && { clientId: dto.clientId }),
-        ...(dto.clientSecret && { clientSecret: dto.clientSecret }),
-        ...(dto.userId && { userId: dto.userId }),
-        ...(dto.proxyType !== undefined && { proxyType: dto.proxyType }),
-        ...(dto.proxyHost !== undefined && { proxyHost: dto.proxyHost }),
-        ...(dto.proxyPort !== undefined && { proxyPort: dto.proxyPort }),
-        ...(dto.proxyLogin !== undefined && { proxyLogin: dto.proxyLogin }),
-        ...(dto.proxyPassword !== undefined && { proxyPassword: dto.proxyPassword }),
-        ...(dto.eternalOnlineEnabled !== undefined && { eternalOnlineEnabled: dto.eternalOnlineEnabled }),
-        ...(dto.onlineKeepAliveInterval !== undefined && { onlineKeepAliveInterval: dto.onlineKeepAliveInterval }),
-      },
+      data: updateData,
     });
 
-    // Переинициализируем клиенты с новыми данными
-    this.initializeClients(id);
+    // Clear cached clients and reinitialize
+    this.apiClients.delete(id);
+    this.messengerClients.delete(id);
+    await this.initializeClients(id);
 
     this.logger.log(`Account updated: ${account.name} (ID: ${id})`);
 
@@ -231,62 +311,78 @@ export class AccountsService {
    * Получить API клиент для аккаунта
    */
   async getApiClient(accountId: number): Promise<AvitoApiService> {
-    if (this.apiClients.has(accountId)) {
-      return this.apiClients.get(accountId);
+    const cached = this.apiClients.get(accountId);
+    if (cached) {
+      return cached;
     }
 
-    return this.initializeClients(accountId).apiClient;
+    const { apiClient } = await this.initializeClients(accountId);
+    return apiClient;
   }
 
   /**
    * Получить Messenger клиент для аккаунта
    */
   async getMessengerClient(accountId: number): Promise<AvitoMessengerService> {
-    if (this.messengerClients.has(accountId)) {
-      return this.messengerClients.get(accountId);
+    const cached = this.messengerClients.get(accountId);
+    if (cached) {
+      return cached;
     }
 
-    return this.initializeClients(accountId).messengerClient;
+    const { messengerClient } = await this.initializeClients(accountId);
+    return messengerClient;
   }
 
   /**
    * Инициализировать клиенты для аккаунта
+   * FIXED: Now properly async to prevent race conditions
    */
-  private initializeClients(accountId: number) {
-    const account = this.prisma.avito.findUniqueOrThrow({ where: { id: accountId } });
-
-    account.then((acc) => {
-      const proxyConfig = acc.proxyHost
-        ? {
-            host: acc.proxyHost,
-            port: acc.proxyPort,
-            protocol: acc.proxyType as any,
-            auth: acc.proxyLogin
-              ? {
-                  username: acc.proxyLogin,
-                  password: acc.proxyPassword,
-                }
-              : undefined,
-          }
-        : undefined;
-
-      const apiClient = new AvitoApiService(acc.clientId, acc.clientSecret, proxyConfig);
-      const messengerClient = new AvitoMessengerService(
-        acc.clientId,
-        acc.clientSecret,
-        acc.userId ? parseInt(acc.userId) : 0,
-        proxyConfig,
-      );
-
-      this.apiClients.set(accountId, apiClient);
-      this.messengerClients.set(accountId, messengerClient);
-
-      this.logger.log(`Clients initialized for account ${accountId}`);
+  private async initializeClients(accountId: number) {
+    const account = await this.prisma.avito.findUniqueOrThrow({ 
+      where: { id: accountId } 
     });
 
+    // Decrypt secrets before using them
+    const decryptedClientSecret = await this.encryption.decryptIfNeeded(account.clientSecret);
+    const decryptedProxyPassword = account.proxyPassword
+      ? await this.encryption.decryptIfNeeded(account.proxyPassword)
+      : null;
+
+    const proxyConfig = account.proxyHost
+      ? {
+          host: account.proxyHost,
+          port: account.proxyPort,
+          protocol: account.proxyType as any,
+          auth: account.proxyLogin
+            ? {
+                username: account.proxyLogin,
+                password: decryptedProxyPassword,
+              }
+            : undefined,
+        }
+      : undefined;
+
+    const apiClient = new AvitoApiService(
+      account.clientId, 
+      decryptedClientSecret, 
+      proxyConfig
+    );
+    
+    const messengerClient = new AvitoMessengerService(
+      account.clientId,
+      decryptedClientSecret,
+      account.userId ? parseInt(account.userId) : 0,
+      proxyConfig,
+    );
+
+    this.apiClients.set(accountId, apiClient);
+    this.messengerClients.set(accountId, messengerClient);
+
+    this.logger.log(`Clients initialized for account ${accountId}`);
+
     return {
-      apiClient: this.apiClients.get(accountId),
-      messengerClient: this.messengerClients.get(accountId),
+      apiClient,
+      messengerClient,
     };
   }
 }

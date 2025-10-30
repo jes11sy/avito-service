@@ -35,7 +35,8 @@
     "https-proxy-agent": "^7.0.2",
     "socks-proxy-agent": "^8.0.2",
     "socket.io": "^4.7.5",
-    "socket.io-client": "^4.7.5"
+    "socket.io-client": "^4.7.5",
+    "lru-cache": "^10.1.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.2.1",
