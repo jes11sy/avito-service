@@ -16,11 +16,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     });
 
     // Monitor query performance
-    this.$on('warn' as any, (e: any) => {
+    // @ts-ignore - Prisma event types
+    this.$on('warn', (e: any) => {
       this.logger.warn(`Prisma Warning: ${e.message}`);
     });
 
-    this.$on('error' as any, (e: any) => {
+    // @ts-ignore - Prisma event types
+    this.$on('error', (e: any) => {
       this.errorCount++;
       this.logger.error(`Prisma Error: ${e.message}`);
     });
