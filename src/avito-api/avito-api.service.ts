@@ -324,12 +324,16 @@ export class AvitoApiService {
     }
 
     try {
-      // Получаем список объявлений
+      // Получаем список объявлений авторизованного пользователя
       const itemsResponse = await this.axiosInstance.get(
-        `/core/v1/accounts/${userId}/items`,
+        `/core/v1/items`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
+          },
+          params: {
+            per_page: 100,
+            status: 'active',
           },
         }
       );
