@@ -85,7 +85,7 @@ export class AccountsService implements OnModuleDestroy {
           : null,
         connectionStatus: account.connection_status === 'connected' ? 'online' : 'offline',
         proxyStatus: account.proxy_status === 'connected' ? 'active' : 'inactive',
-        cpa: account.account_balance ? account.account_balance / 100 : 0, // конвертируем копейки в рубли
+        cpa: account.account_balance || 0, // CPA баланс уже в копейках, фронт сам отформатирует
         adsCount: account.ads_count || 0,
         viewsCount: account.views_count || 0,
         contactsCount: account.contacts_count || 0,
