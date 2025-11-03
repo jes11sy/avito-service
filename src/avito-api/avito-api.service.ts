@@ -284,14 +284,20 @@ export class AvitoApiService {
         }
       );
 
-      this.logger.log(`CPA Balance response: ${JSON.stringify(response.data)}`);
+      this.logger.log(`CPA Balance RAW response: ${JSON.stringify(response.data)}`);
       
-      // API v2 возвращает { balance: number, advance: number, debt: number }
-      return { 
-        balance: response.data.balance || 0,
-        advance: response.data.advance || 0,
-        debt: response.data.debt || 0,
+      // API v2 возвращает { result: { balance, advance, debt } }
+      const resultData = response.data.result || response.data;
+      
+      const result = { 
+        balance: resultData.balance || 0,
+        advance: resultData.advance || 0,
+        debt: resultData.debt || 0,
       };
+      
+      this.logger.log(`CPA Balance PARSED: balance=${result.balance}, advance=${result.advance}, debt=${result.debt}`);
+      
+      return result;
     } catch (error: any) {
       this.logger.error(`Failed to get CPA balance: ${error.message}`);
       if (error.response) {
