@@ -47,7 +47,9 @@ interface AvitoItemStats {
 }
 
 export interface AvitoCPABalance {
-  balance: number; // в копейках
+  balance: number; // текущий баланс в копейках
+  advance?: number; // аванс в копейках
+  debt?: number; // долг в копейках
 }
 
 export interface AvitoAggregatedStats {
@@ -265,13 +267,14 @@ export class AvitoApiService {
 
   /**
    * Получить CPA баланс (в копейках)
+   * Используем v2 API чтобы получить аванс
    */
   async getCPABalance(): Promise<AvitoCPABalance> {
     const token = await this.getAccessToken();
 
     try {
-      const response = await this.axiosInstance.post<AvitoCPABalance>(
-        '/cpa/v3/balanceInfo',
+      const response = await this.axiosInstance.post(
+        '/cpa/v2/balanceInfo',
         {},
         {
           headers: {
@@ -281,11 +284,21 @@ export class AvitoApiService {
         }
       );
 
-      return response.data;
+      this.logger.log(`CPA Balance response: ${JSON.stringify(response.data)}`);
+      
+      // API v2 возвращает { balance: number, advance: number, debt: number }
+      return { 
+        balance: response.data.balance || 0,
+        advance: response.data.advance || 0,
+        debt: response.data.debt || 0,
+      };
     } catch (error: any) {
       this.logger.error(`Failed to get CPA balance: ${error.message}`);
-      // Возвращаем 0 если нет CPA тарифа
-      return { balance: 0 };
+      if (error.response) {
+        this.logger.error(`Response status: ${error.response.status}, data: ${JSON.stringify(error.response.data)}`);
+      }
+      // Возвращаем 0 если нет CPA тарифа или ошибка
+      return { balance: 0, advance: 0, debt: 0 };
     }
   }
 

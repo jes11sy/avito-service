@@ -305,7 +305,7 @@ export class AccountsService implements OnModuleDestroy {
       await this.prisma.avito.update({
         where: { id: accountId },
         data: {
-          accountBalance: cpaBalance.balance, // CPA баланс в копейках
+          accountBalance: cpaBalance.advance || 0, // CPA АВАНС в копейках (это то что показывается в интерфейсе Avito)
           adsCount: aggregatedStats?.adsCount || 0,
           viewsCount: aggregatedStats?.totalViews || 0,
           contactsCount: aggregatedStats?.totalContacts || 0,
