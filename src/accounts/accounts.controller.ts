@@ -52,6 +52,36 @@ export class AccountsController {
     };
   }
 
+  @Post('check-all-connections')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check all accounts connections' })
+  async checkAllConnections() {
+    return this.accountsService.checkAllConnections();
+  }
+
+  @Post('check-all-proxies')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check all accounts proxies' })
+  async checkAllProxies() {
+    return this.accountsService.checkAllProxies();
+  }
+
+  @Post('sync-all-stats')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sync statistics for all accounts' })
+  async syncAllStats() {
+    return this.accountsService.syncAllAccountsStats();
+  }
+
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
@@ -117,26 +147,6 @@ export class AccountsController {
     return this.accountsService.syncAccountStats(id);
   }
 
-  @Post('check-all-connections')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Check all accounts connections' })
-  async checkAllConnections() {
-    return this.accountsService.checkAllConnections();
-  }
-
-  @Post('check-all-proxies')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Check all accounts proxies' })
-  async checkAllProxies() {
-    return this.accountsService.checkAllProxies();
-  }
-
   @Post(':id/check-proxy')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @ApiBearerAuth()
@@ -160,16 +170,6 @@ export class AccountsController {
         proxyStatus: isProxyOk ? 'connected' : 'disconnected',
       },
     };
-  }
-
-  @Post('sync-all-stats')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Sync statistics for all accounts' })
-  async syncAllStats() {
-    return this.accountsService.syncAllAccountsStats();
   }
 }
 
