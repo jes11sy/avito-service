@@ -68,20 +68,37 @@ export class AccountsService implements OnModuleDestroy {
       ORDER BY a.created_at DESC
     `;
 
-    // Decrypt sensitive fields before returning
-    const decryptedAccounts = await Promise.all(
+    // Decrypt sensitive fields and format for frontend
+    const formattedAccounts = await Promise.all(
       accountsWithCounts.map(async (account) => ({
-        ...account,
+        id: account.id,
+        name: account.name,
+        clientId: account.client_id,
         clientSecret: await this.encryption.decryptIfNeeded(account.client_secret),
+        userId: account.user_id,
+        proxyType: account.proxy_type,
+        proxyHost: account.proxy_host,
+        proxyPort: account.proxy_port,
+        proxyLogin: account.proxy_login,
         proxyPassword: account.proxy_password 
           ? await this.encryption.decryptIfNeeded(account.proxy_password)
           : null,
+        connectionStatus: account.connection_status === 'connected' ? 'online' : 'offline',
+        proxyStatus: account.proxy_status === 'connected' ? 'active' : 'inactive',
+        cpa: account.account_balance ? account.account_balance / 100 : 0, // конвертируем копейки в рубли
+        adsCount: account.ads_count || 0,
+        viewsCount: account.views_count || 0,
+        contactsCount: account.contacts_count || 0,
+        lastSyncAt: account.last_sync_at,
+        createdAt: account.created_at,
+        eternalOnlineEnabled: account.eternal_online_enabled,
+        onlineKeepAliveInterval: account.online_keep_alive_interval,
       }))
     );
 
     return {
       success: true,
-      data: decryptedAccounts,
+      data: formattedAccounts,
     };
   }
 
@@ -275,21 +292,23 @@ export class AccountsService implements OnModuleDestroy {
     const account = await this.prisma.avito.findUnique({ where: { id: accountId } });
 
     try {
-      const [balance, accountInfo] = await Promise.all([
-        apiClient.getBalance(),
+      const [cpaBalance, accountInfo] = await Promise.all([
+        apiClient.getCPABalance(),
         apiClient.getAccountInfo(),
       ]);
 
-      let itemsStats = null;
+      let aggregatedStats = null;
       if (account.userId) {
-        itemsStats = await apiClient.getItemsStats(parseInt(account.userId));
+        aggregatedStats = await apiClient.getAggregatedStats(parseInt(account.userId));
       }
 
       await this.prisma.avito.update({
         where: { id: accountId },
         data: {
-          accountBalance: balance.real + balance.bonus,
-          adsCount: itemsStats?.count || 0,
+          accountBalance: cpaBalance.balance, // CPA баланс в копейках
+          adsCount: aggregatedStats?.adsCount || 0,
+          viewsCount: aggregatedStats?.totalViews || 0,
+          contactsCount: aggregatedStats?.totalContacts || 0,
           lastSyncAt: new Date(),
         },
       });
@@ -299,12 +318,109 @@ export class AccountsService implements OnModuleDestroy {
       return {
         success: true,
         message: 'Stats synchronized',
-        data: { balance, itemsStats, accountInfo },
+        data: { cpaBalance, aggregatedStats, accountInfo },
       };
     } catch (error: any) {
       this.logger.error(`Failed to sync stats for account ${accountId}: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Массовая проверка всех подключений
+   */
+  async checkAllConnections() {
+    const accounts = await this.prisma.avito.findMany();
+    
+    this.logger.log(`Starting connection check for ${accounts.length} accounts`);
+    
+    const results = await Promise.allSettled(
+      accounts.map(account => this.checkConnection(account.id))
+    );
+
+    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    
+    this.logger.log(`Connection check completed: ${successCount}/${accounts.length} successful`);
+
+    return {
+      success: true,
+      message: `Checked ${accounts.length} accounts`,
+      data: {
+        total: accounts.length,
+        successful: successCount,
+        failed: accounts.length - successCount,
+      },
+    };
+  }
+
+  /**
+   * Массовая проверка всех прокси
+   */
+  async checkAllProxies() {
+    const accounts = await this.prisma.avito.findMany({
+      where: {
+        proxyHost: { not: null },
+      },
+    });
+    
+    this.logger.log(`Starting proxy check for ${accounts.length} accounts`);
+    
+    const results = await Promise.allSettled(
+      accounts.map(async (account) => {
+        const apiClient = await this.getApiClient(account.id);
+        const isProxyOk = await apiClient.proxyCheck();
+        
+        await this.prisma.avito.update({
+          where: { id: account.id },
+          data: {
+            proxyStatus: isProxyOk ? 'connected' : 'disconnected',
+          },
+        });
+
+        return { accountId: account.id, success: isProxyOk };
+      })
+    );
+
+    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    
+    this.logger.log(`Proxy check completed: ${successCount}/${accounts.length} successful`);
+
+    return {
+      success: true,
+      message: `Checked ${accounts.length} proxies`,
+      data: {
+        total: accounts.length,
+        successful: successCount,
+        failed: accounts.length - successCount,
+      },
+    };
+  }
+
+  /**
+   * Синхронизация статистики для всех аккаунтов
+   */
+  async syncAllAccountsStats() {
+    const accounts = await this.prisma.avito.findMany();
+    
+    this.logger.log(`Starting stats sync for ${accounts.length} accounts`);
+    
+    const results = await Promise.allSettled(
+      accounts.map(account => this.syncAccountStats(account.id))
+    );
+
+    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    
+    this.logger.log(`Stats sync completed: ${successCount}/${accounts.length} successful`);
+
+    return {
+      success: true,
+      message: `Synced stats for ${accounts.length} accounts`,
+      data: {
+        total: accounts.length,
+        successful: successCount,
+        failed: accounts.length - successCount,
+      },
+    };
   }
 
   /**

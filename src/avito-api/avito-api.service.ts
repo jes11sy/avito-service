@@ -46,6 +46,16 @@ interface AvitoItemStats {
   favorites: number;
 }
 
+export interface AvitoCPABalance {
+  balance: number; // в копейках
+}
+
+export interface AvitoAggregatedStats {
+  totalViews: number;
+  totalContacts: number;
+  adsCount: number;
+}
+
 @Injectable()
 export class AvitoApiService {
   private readonly logger = new Logger(AvitoApiService.name);
@@ -250,6 +260,116 @@ export class AvitoApiService {
     } catch (error) {
       this.logger.error(`Proxy check failed: ${error.message}`);
       return false;
+    }
+  }
+
+  /**
+   * Получить CPA баланс (в копейках)
+   */
+  async getCPABalance(): Promise<AvitoCPABalance> {
+    const token = await this.getAccessToken();
+
+    try {
+      const response = await this.axiosInstance.post<AvitoCPABalance>(
+        '/cpa/v3/balanceInfo',
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'X-Source': 'avito-service',
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(`Failed to get CPA balance: ${error.message}`);
+      // Возвращаем 0 если нет CPA тарифа
+      return { balance: 0 };
+    }
+  }
+
+  /**
+   * Получить агрегированную статистику по всем объявлениям
+   */
+  async getAggregatedStats(userId: number, dateFrom?: string, dateTo?: string): Promise<AvitoAggregatedStats> {
+    const token = await this.getAccessToken();
+
+    // Используем последние 30 дней если даты не указаны
+    if (!dateFrom || !dateTo) {
+      const now = new Date();
+      dateTo = now.toISOString().split('T')[0];
+      const from = new Date(now);
+      from.setDate(from.getDate() - 30);
+      dateFrom = from.toISOString().split('T')[0];
+    }
+
+    try {
+      // Получаем список объявлений
+      const itemsResponse = await this.axiosInstance.get(
+        `/core/v1/accounts/${userId}/items`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const items = itemsResponse.data?.resources || [];
+      
+      if (items.length === 0) {
+        return {
+          totalViews: 0,
+          totalContacts: 0,
+          adsCount: 0,
+        };
+      }
+
+      // Получаем статистику по объявлениям (можно группами по 200)
+      const itemIds = items.map((item: any) => item.id).slice(0, 200);
+      
+      const statsResponse = await this.axiosInstance.post(
+        `/stats/v1/accounts/${userId}/items`,
+        {
+          dateFrom,
+          dateTo,
+          itemIds,
+          fields: ['uniqViews', 'uniqContacts'],
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const statsData = statsResponse.data?.result?.items || [];
+      
+      let totalViews = 0;
+      let totalContacts = 0;
+
+      statsData.forEach((item: any) => {
+        if (item.stats && Array.isArray(item.stats)) {
+          item.stats.forEach((stat: any) => {
+            totalViews += stat.uniqViews || 0;
+            totalContacts += stat.uniqContacts || 0;
+          });
+        }
+      });
+
+      return {
+        totalViews,
+        totalContacts,
+        adsCount: items.length,
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to get aggregated stats: ${error.message}`);
+      // Возвращаем 0 при ошибке
+      return {
+        totalViews: 0,
+        totalContacts: 0,
+        adsCount: 0,
+      };
     }
   }
 }

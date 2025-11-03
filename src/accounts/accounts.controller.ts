@@ -116,5 +116,60 @@ export class AccountsController {
   async syncStats(@Param('id', ParseIntPipe) id: number) {
     return this.accountsService.syncAccountStats(id);
   }
+
+  @Post('check-all-connections')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check all accounts connections' })
+  async checkAllConnections() {
+    return this.accountsService.checkAllConnections();
+  }
+
+  @Post('check-all-proxies')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check all accounts proxies' })
+  async checkAllProxies() {
+    return this.accountsService.checkAllProxies();
+  }
+
+  @Post(':id/check-proxy')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check account proxy' })
+  async checkProxy(@Param('id', ParseIntPipe) id: number) {
+    const apiClient = await this.accountsService.getApiClient(id);
+    const isProxyOk = await apiClient.proxyCheck();
+    
+    await this.prisma.avito.update({
+      where: { id },
+      data: {
+        proxyStatus: isProxyOk ? 'connected' : 'disconnected',
+      },
+    });
+
+    return {
+      success: true,
+      data: {
+        proxyStatus: isProxyOk ? 'connected' : 'disconnected',
+      },
+    };
+  }
+
+  @Post('sync-all-stats')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sync statistics for all accounts' })
+  async syncAllStats() {
+    return this.accountsService.syncAllAccountsStats();
+  }
 }
 

@@ -8,12 +8,40 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private errorCount = 0;
 
   constructor() {
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    
+    // ✅ ОПТИМИЗИРОВАНО: Avito Service - средняя/высокая нагрузка
+    // Интеграция с Avito API, мессенджер, объявления
+    const databaseUrl = process.env.DATABASE_URL || '';
+    const hasParams = databaseUrl.includes('?');
+    
+    const connectionParams = [
+      'connection_limit=30',      // Высокое значение для API интеграции
+      'pool_timeout=20',
+      'connect_timeout=10',
+      'socket_timeout=60',
+    ];
+    
+    const needsParams = !databaseUrl.includes('connection_limit');
+    const enhancedUrl = needsParams
+      ? `${databaseUrl}${hasParams ? '&' : '?'}${connectionParams.join('&')}`
+      : databaseUrl;
+
     super({
+      datasources: {
+        db: {
+          url: enhancedUrl,
+        },
+      },
       log: [
         { level: 'warn', emit: 'event' },
         { level: 'error', emit: 'event' },
       ],
     });
+
+    if (needsParams) {
+      this.logger.log('✅ Connection pool configured: limit=30');
+    }
 
     // Monitor query performance
     // @ts-ignore - Prisma event types

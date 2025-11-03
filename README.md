@@ -98,7 +98,7 @@ JWT_SECRET=your-secret-key
 
 # Server
 PORT=5004
-CORS_ORIGIN=https://admin.test-shem.ru,https://callcentre.test-shem.ru
+CORS_ORIGIN=https://test-shem.ru,https://callcentre.test-shem.ru
 
 # Optional
 NODE_ENV=production
