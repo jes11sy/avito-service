@@ -247,7 +247,7 @@ export class AvitoApiService {
   }
 
   /**
-   * Проверка прокси
+   * Проверка прокси - просто проверяем доступность API через прокси
    */
   async proxyCheck(): Promise<boolean> {
     if (!this.proxyConfig) {
@@ -255,8 +255,10 @@ export class AvitoApiService {
     }
 
     try {
-      await this.axiosInstance.get('https://api.avito.ru/core/v1/accounts/self', {
+      // Проверяем доступность API Avito через прокси (без авторизации)
+      await this.axiosInstance.get('https://api.avito.ru', {
         timeout: 10000,
+        validateStatus: (status) => status < 500, // Любой ответ кроме 5xx = прокси работает
       });
       return true;
     } catch (error) {
