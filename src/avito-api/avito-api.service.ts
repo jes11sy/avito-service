@@ -55,6 +55,8 @@ export interface AvitoCPABalance {
 export interface AvitoAggregatedStats {
   totalViews: number;
   totalContacts: number;
+  todayViews: number;
+  todayContacts: number;
   adsCount: number;
 }
 
@@ -312,14 +314,17 @@ export class AvitoApiService {
 
   /**
    * Получить агрегированную статистику по всем объявлениям
+   * Возвращает общую статистику + за сегодня
    */
   async getAggregatedStats(userId: number, dateFrom?: string, dateTo?: string): Promise<AvitoAggregatedStats> {
     const token = await this.getAccessToken();
 
     // Используем последние 30 дней если даты не указаны
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    
     if (!dateFrom || !dateTo) {
-      const now = new Date();
-      dateTo = now.toISOString().split('T')[0];
+      dateTo = today;
       const from = new Date(now);
       from.setDate(from.getDate() - 30);
       dateFrom = from.toISOString().split('T')[0];
@@ -346,6 +351,8 @@ export class AvitoApiService {
         return {
           totalViews: 0,
           totalContacts: 0,
+          todayViews: 0,
+          todayContacts: 0,
           adsCount: 0,
         };
       }
@@ -353,6 +360,7 @@ export class AvitoApiService {
       // Получаем статистику по объявлениям (можно группами по 200)
       const itemIds = items.map((item: any) => item.id).slice(0, 200);
       
+      // Запрашиваем статистику за весь период
       const statsResponse = await this.axiosInstance.post(
         `/stats/v1/accounts/${userId}/items`,
         {
@@ -372,12 +380,23 @@ export class AvitoApiService {
       
       let totalViews = 0;
       let totalContacts = 0;
+      let todayViews = 0;
+      let todayContacts = 0;
 
       statsData.forEach((item: any) => {
         if (item.stats && Array.isArray(item.stats)) {
           item.stats.forEach((stat: any) => {
-            totalViews += stat.uniqViews || 0;
-            totalContacts += stat.uniqContacts || 0;
+            const views = stat.uniqViews || 0;
+            const contacts = stat.uniqContacts || 0;
+            
+            totalViews += views;
+            totalContacts += contacts;
+            
+            // Если дата статистики = сегодня, добавляем к сегодняшним
+            if (stat.date === today) {
+              todayViews += views;
+              todayContacts += contacts;
+            }
           });
         }
       });
@@ -385,6 +404,8 @@ export class AvitoApiService {
       return {
         totalViews,
         totalContacts,
+        todayViews,
+        todayContacts,
         adsCount: items.length,
       };
     } catch (error: any) {
@@ -393,6 +414,8 @@ export class AvitoApiService {
       return {
         totalViews: 0,
         totalContacts: 0,
+        todayViews: 0,
+        todayContacts: 0,
         adsCount: 0,
       };
     }

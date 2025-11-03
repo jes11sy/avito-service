@@ -89,6 +89,8 @@ export class AccountsService implements OnModuleDestroy {
         adsCount: account.ads_count || 0,
         viewsCount: account.views_count || 0,
         contactsCount: account.contacts_count || 0,
+        viewsToday: account.views_today || 0,
+        contactsToday: account.contacts_today || 0,
         lastSyncAt: account.last_sync_at,
         createdAt: account.created_at,
         eternalOnlineEnabled: account.eternal_online_enabled,
@@ -309,6 +311,8 @@ export class AccountsService implements OnModuleDestroy {
           adsCount: aggregatedStats?.adsCount || 0,
           viewsCount: aggregatedStats?.totalViews || 0,
           contactsCount: aggregatedStats?.totalContacts || 0,
+          viewsToday: aggregatedStats?.todayViews || 0,
+          contactsToday: aggregatedStats?.todayContacts || 0,
           lastSyncAt: new Date(),
         },
       });
