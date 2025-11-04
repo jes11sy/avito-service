@@ -9,7 +9,7 @@ export class WebhookRegistrationService implements OnModuleInit {
 
   constructor(private messengerService: MessengerService) {
     // Get webhook URL from environment
-    let webhookUrl = process.env.AVITO_WEBHOOK_URL || 'https://api.test-shem.ru/api/v1/webhooks/avito';
+    let webhookUrl = process.env.AVITO_WEBHOOK_URL || 'https://api.lead-schem.ru/api/v1/webhooks/avito';
     
     // Clean up duplicate https://
     this.webhookUrl = webhookUrl.replace('https://https://', 'https://');
