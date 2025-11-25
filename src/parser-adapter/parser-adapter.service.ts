@@ -46,11 +46,14 @@ export class ParserAdapterService {
   /**
    * Получить чаты через парсер
    */
-  async getChats(account: ParserAccount): Promise<any[]> {
+  async getChats(account: ParserAccount): Promise<{ data: any[], cookies?: string }> {
     try {
       const response = await this.axiosInstance.post('/parser/chats', { account });
       if (response.data.success) {
-        return response.data.data;
+        return {
+          data: response.data.data,
+          cookies: response.data.cookies,
+        };
       }
       throw new Error(response.data.error || 'Get chats failed');
     } catch (error: any) {
@@ -62,11 +65,14 @@ export class ParserAdapterService {
   /**
    * Получить сообщения через парсер
    */
-  async getMessages(account: ParserAccount, chatId: string): Promise<any[]> {
+  async getMessages(account: ParserAccount, chatId: string): Promise<{ data: any[], cookies?: string }> {
     try {
       const response = await this.axiosInstance.post('/parser/messages', { account, chatId });
       if (response.data.success) {
-        return response.data.data;
+        return {
+          data: response.data.data,
+          cookies: response.data.cookies,
+        };
       }
       throw new Error(response.data.error || 'Get messages failed');
     } catch (error: any) {
@@ -78,10 +84,13 @@ export class ParserAdapterService {
   /**
    * Отправить сообщение через парсер
    */
-  async sendMessage(account: ParserAccount, chatId: string, message: string): Promise<boolean> {
+  async sendMessage(account: ParserAccount, chatId: string, message: string): Promise<{ success: boolean, cookies?: string }> {
     try {
       const response = await this.axiosInstance.post('/parser/send', { account, chatId, message });
-      return response.data.success;
+      return {
+        success: response.data.success,
+        cookies: response.data.cookies,
+      };
     } catch (error: any) {
       this.logger.error(`Parser send message failed for account ${account.id}:`, error.message);
       throw error;
