@@ -47,6 +47,12 @@ model Avito {
   isOnline                Boolean?  @default(false) @map("is_online")
   lastOnlineCheck         DateTime? @map("last_online_check")
   onlineKeepAliveInterval Int?      @default(300) @map("online_keep_alive_interval")
+  // Parser fields
+  avitoLogin              String?   @map("avito_login")
+  avitoPassword           String?   @map("avito_password")
+  cookies                 String?   @db.Text @map("cookies")
+  lastBrowserSession      DateTime? @map("last_browser_session")
+  useParser               Boolean?  @default(false) @map("use_parser")
   calls                   Call[]  @relation("AvitoCalls")
   orders                  Order[] @relation("AvitoOrders")
 

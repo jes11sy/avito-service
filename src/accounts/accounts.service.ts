@@ -137,9 +137,14 @@ export class AccountsService implements OnModuleDestroy {
    */
   async createAccount(dto: CreateAccountDto) {
     // Encrypt sensitive data before storing
-    const encryptedClientSecret = await this.encryption.encrypt(dto.clientSecret);
+    const encryptedClientSecret = dto.clientSecret 
+      ? await this.encryption.encrypt(dto.clientSecret)
+      : null;
     const encryptedProxyPassword = dto.proxyPassword 
       ? await this.encryption.encrypt(dto.proxyPassword)
+      : null;
+    const encryptedAvitoPassword = dto.avitoPassword
+      ? await this.encryption.encrypt(dto.avitoPassword)
       : null;
 
     const account = await this.prisma.avito.create({
@@ -148,6 +153,9 @@ export class AccountsService implements OnModuleDestroy {
         clientId: dto.clientId,
         clientSecret: encryptedClientSecret,
         userId: dto.userId,
+        avitoLogin: dto.avitoLogin,
+        avitoPassword: encryptedAvitoPassword,
+        useParser: dto.useParser || false,
         proxyType: dto.proxyType,
         proxyHost: dto.proxyHost,
         proxyPort: dto.proxyPort,
@@ -191,6 +199,11 @@ export class AccountsService implements OnModuleDestroy {
       updateData.clientSecret = await this.encryption.encrypt(dto.clientSecret);
     }
     if (dto.userId) updateData.userId = dto.userId;
+    if (dto.avitoLogin !== undefined) updateData.avitoLogin = dto.avitoLogin;
+    if (dto.avitoPassword) {
+      updateData.avitoPassword = await this.encryption.encrypt(dto.avitoPassword);
+    }
+    if (dto.useParser !== undefined) updateData.useParser = dto.useParser;
     if (dto.proxyType !== undefined) updateData.proxyType = dto.proxyType;
     if (dto.proxyHost !== undefined) updateData.proxyHost = dto.proxyHost;
     if (dto.proxyPort !== undefined) updateData.proxyPort = dto.proxyPort;

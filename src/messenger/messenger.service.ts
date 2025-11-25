@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AvitoMessengerService } from '../avito-api/avito-messenger.service';
 import { EncryptionService } from '../common/encryption.service';
 import { SafeLogger } from '../common/safe-logger.service';
+import { ParserAdapterService } from '../parser-adapter/parser-adapter.service';
 
 @Injectable()
 export class MessengerService {
@@ -14,6 +15,7 @@ export class MessengerService {
     private prisma: PrismaService,
     private encryption: EncryptionService,
     private safeLogger: SafeLogger,
+    private parserAdapter: ParserAdapterService,
   ) {
     this.logger = this.safeLogger.createContextLogger(MessengerService.name);
     
@@ -98,6 +100,21 @@ export class MessengerService {
 
   async getChats(avitoAccountName: string, unreadOnly: boolean = false, limit?: number) {
     try {
+      // Проверяем использует ли аккаунт парсер
+      const account = await this.prisma.avito.findUnique({
+        where: { name: avitoAccountName },
+      });
+
+      if (!account) {
+        throw new NotFoundException(`Avito account ${avitoAccountName} not found`);
+      }
+
+      // Если используется парсер - используем его
+      if (account.useParser) {
+        return await this.getChatsViaParser(account);
+      }
+
+      // Иначе используем API
       const service = await this.getMessengerService(avitoAccountName);
       // Pass unreadOnly and limit directly to Avito API
       const chats = await service.getChats(unreadOnly, limit);
@@ -167,7 +184,21 @@ export class MessengerService {
   async getMessages(chatId: string, avitoAccountName?: string, limit: number = 100) {
     try {
       if (avitoAccountName) {
-        // Use specified account
+        // Проверяем использует ли аккаунт парсер
+        const account = await this.prisma.avito.findUnique({
+          where: { name: avitoAccountName },
+        });
+
+        if (!account) {
+          throw new NotFoundException(`Avito account ${avitoAccountName} not found`);
+        }
+
+        // Если используется парсер
+        if (account.useParser) {
+          return await this.getMessagesViaParser(account, chatId);
+        }
+
+        // Use specified account via API
         const service = await this.getMessengerService(avitoAccountName);
         const messages = await service.getMessages(chatId, limit);
         
@@ -199,6 +230,21 @@ export class MessengerService {
 
   async sendMessage(chatId: string, text: string, avitoAccountName: string) {
     try {
+      // Проверяем использует ли аккаунт парсер
+      const account = await this.prisma.avito.findUnique({
+        where: { name: avitoAccountName },
+      });
+
+      if (!account) {
+        throw new NotFoundException(`Avito account ${avitoAccountName} not found`);
+      }
+
+      // Если используется парсер
+      if (account.useParser) {
+        return await this.sendMessageViaParser(account, chatId, text);
+      }
+
+      // Используем API
       const service = await this.getMessengerService(avitoAccountName);
       const result = await service.sendMessage(chatId, text);
 
@@ -302,6 +348,195 @@ export class MessengerService {
       };
     } catch (error: any) {
       this.logger.error(`Failed to register webhooks: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить чаты через парсер
+   */
+  private async getChatsViaParser(account: any) {
+    try {
+      this.logger.log(`Getting chats via parser for account: ${account.name}`);
+
+      // Расшифровываем пароль
+      const decryptedPassword = account.avitoPassword
+        ? await this.encryption.decryptIfNeeded(account.avitoPassword)
+        : null;
+
+      const decryptedProxyPassword = account.proxyPassword
+        ? await this.encryption.decryptIfNeeded(account.proxyPassword)
+        : null;
+
+      // Формируем данные для парсера
+      const parserAccount = {
+        id: account.id,
+        login: account.avitoLogin,
+        password: decryptedPassword,
+        cookies: account.cookies,
+        proxyHost: account.proxyHost,
+        proxyPort: account.proxyPort,
+        proxyType: account.proxyType,
+        proxyLogin: account.proxyLogin,
+        proxyPassword: decryptedProxyPassword,
+      };
+
+      // Получаем чаты через парсер
+      const chats = await this.parserAdapter.getChats(parserAccount);
+
+      // Обновляем cookies если они изменились
+      if (chats.cookies && chats.cookies !== account.cookies) {
+        await this.prisma.avito.update({
+          where: { id: account.id },
+          data: {
+            cookies: chats.cookies,
+            lastBrowserSession: new Date(),
+          },
+        });
+      }
+
+      // Преобразуем формат парсера в формат API
+      const mappedChats = chats.data.map(chat => ({
+        id: chat.id,
+        users: [{
+          id: chat.userId,
+          name: chat.userName,
+          avatar: null,
+        }],
+        last_message: {
+          id: `${chat.id}_last`,
+          author_id: chat.userId,
+          content: { text: chat.lastMessage },
+          created: chat.lastMessageTime,
+        },
+        context: {
+          value: {
+            item_id: chat.itemId,
+            item_title: chat.itemTitle,
+          },
+        },
+        unread_count: chat.unreadCount,
+      }));
+
+      return {
+        success: true,
+        data: mappedChats,
+        source: 'parser',
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to get chats via parser: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить сообщения через парсер
+   */
+  private async getMessagesViaParser(account: any, chatId: string) {
+    try {
+      this.logger.log(`Getting messages via parser for chat: ${chatId}`);
+
+      const decryptedPassword = account.avitoPassword
+        ? await this.encryption.decryptIfNeeded(account.avitoPassword)
+        : null;
+
+      const decryptedProxyPassword = account.proxyPassword
+        ? await this.encryption.decryptIfNeeded(account.proxyPassword)
+        : null;
+
+      const parserAccount = {
+        id: account.id,
+        login: account.avitoLogin,
+        password: decryptedPassword,
+        cookies: account.cookies,
+        proxyHost: account.proxyHost,
+        proxyPort: account.proxyPort,
+        proxyType: account.proxyType,
+        proxyLogin: account.proxyLogin,
+        proxyPassword: decryptedProxyPassword,
+      };
+
+      const messages = await this.parserAdapter.getMessages(parserAccount, chatId);
+
+      // Обновляем cookies
+      if (messages.cookies && messages.cookies !== account.cookies) {
+        await this.prisma.avito.update({
+          where: { id: account.id },
+          data: {
+            cookies: messages.cookies,
+            lastBrowserSession: new Date(),
+          },
+        });
+      }
+
+      // Преобразуем формат
+      const mappedMessages = messages.data.map(msg => ({
+        id: msg.id,
+        author_id: msg.author_id,
+        content: { text: msg.content },
+        type: msg.type,
+        direction: msg.direction,
+        created: msg.created,
+      }));
+
+      return {
+        success: true,
+        data: mappedMessages,
+        source: 'parser',
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to get messages via parser: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Отправить сообщение через парсер
+   */
+  private async sendMessageViaParser(account: any, chatId: string, message: string) {
+    try {
+      this.logger.log(`Sending message via parser to chat: ${chatId}`);
+
+      const decryptedPassword = account.avitoPassword
+        ? await this.encryption.decryptIfNeeded(account.avitoPassword)
+        : null;
+
+      const decryptedProxyPassword = account.proxyPassword
+        ? await this.encryption.decryptIfNeeded(account.proxyPassword)
+        : null;
+
+      const parserAccount = {
+        id: account.id,
+        login: account.avitoLogin,
+        password: decryptedPassword,
+        cookies: account.cookies,
+        proxyHost: account.proxyHost,
+        proxyPort: account.proxyPort,
+        proxyType: account.proxyType,
+        proxyLogin: account.proxyLogin,
+        proxyPassword: decryptedProxyPassword,
+      };
+
+      const result = await this.parserAdapter.sendMessage(parserAccount, chatId, message);
+
+      // Обновляем cookies
+      if (result.cookies && result.cookies !== account.cookies) {
+        await this.prisma.avito.update({
+          where: { id: account.id },
+          data: {
+            cookies: result.cookies,
+            lastBrowserSession: new Date(),
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: 'Message sent via parser',
+        source: 'parser',
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to send message via parser: ${error.message}`);
       throw error;
     }
   }

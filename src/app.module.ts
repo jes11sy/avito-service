@@ -10,6 +10,7 @@ import { EternalOnlineModule } from './eternal-online/eternal-online.module';
 import { MessengerModule } from './messenger/messenger.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { OAuthModule } from './oauth/oauth.module';
+import { ParserAdapterModule } from './parser-adapter/parser-adapter.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { OAuthModule } from './oauth/oauth.module';
     MessengerModule,
     WebhookModule,
     OAuthModule,
+    ParserAdapterModule,
   ],
 })
 export class AppModule {}

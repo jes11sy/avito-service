@@ -6,18 +6,35 @@ export class CreateAccountDto {
   @IsString()
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsString()
-  clientId: string;
+  @IsOptional()
+  clientId?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsString()
-  clientSecret: string;
+  @IsOptional()
+  clientSecret?: string;
 
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   userId?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  avitoLogin?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  avitoPassword?: string;
+
+  @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  useParser?: boolean;
 
   @ApiProperty({ required: false, enum: ['http', 'https', 'socks4', 'socks5'] })
   @IsString()
@@ -77,6 +94,21 @@ export class UpdateAccountDto {
   @IsString()
   @IsOptional()
   userId?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  avitoLogin?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  avitoPassword?: string;
+
+  @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  useParser?: boolean;
 
   @ApiProperty({ required: false })
   @IsString()
