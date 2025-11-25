@@ -28,7 +28,7 @@ export class OAuthController {
   ) {
     try {
       // Проверяем что аккаунт существует
-      const account = await this.prisma.avitoAccount.findUnique({
+      const account = await this.prisma.avito.findUnique({
         where: { id: parseInt(accountId) },
       });
 
@@ -140,15 +140,15 @@ export class OAuthController {
 
       this.logger.log(`OAuth tokens saved for account ${accountId}`);
 
-      // Редиректим на фронтенд с успехом
+      // Редиректим на фронтенд с успехом (на страницу редактирования в админке)
       const frontendUrl = this.config.get<string>('CORS_ORIGIN')?.split(',')[0] || 'https://lead-schem.ru';
-      return reply.redirect(302, `${frontendUrl}/accounts/${accountId}?oauth=success`);
+      return reply.redirect(302, `${frontendUrl}/avito/edit/${accountId}?oauth=success`);
     } catch (error: any) {
       this.logger.error(`OAuth callback failed: ${error.message}`);
       
-      // Редиректим на фронтенд с ошибкой
+      // Редиректим на фронтенд с ошибкой (на страницу списка аккаунтов в админке)
       const frontendUrl = this.config.get<string>('CORS_ORIGIN')?.split(',')[0] || 'https://lead-schem.ru';
-      return reply.redirect(302, `${frontendUrl}/accounts?oauth=error&message=${encodeURIComponent(error.message)}`);
+      return reply.redirect(302, `${frontendUrl}/avito?oauth=error&message=${encodeURIComponent(error.message)}`);
     }
   }
 

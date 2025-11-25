@@ -127,7 +127,7 @@ export class OAuthService {
     refreshToken: string,
   ): Promise<void> {
     try {
-      await this.prisma.avitoAccount.update({
+      await this.prisma.avito.update({
         where: { id: accountId },
         data: {
           clientId: accessToken,
