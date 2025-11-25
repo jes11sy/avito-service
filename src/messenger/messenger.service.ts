@@ -382,21 +382,21 @@ export class MessengerService {
       };
 
       // Получаем чаты через парсер
-      const chats = await this.parserAdapter.getChats(parserAccount);
+      const chatsResponse = await this.parserAdapter.getChats(parserAccount);
 
       // Обновляем cookies если они изменились
-      if (chats.cookies && chats.cookies !== account.cookies) {
+      if (chatsResponse.cookies && chatsResponse.cookies !== account.cookies) {
         await this.prisma.avito.update({
           where: { id: account.id },
           data: {
-            cookies: chats.cookies,
+            cookies: chatsResponse.cookies,
             lastBrowserSession: new Date(),
           },
         });
       }
 
       // Преобразуем формат парсера в формат API
-      const mappedChats = chats.data.map(chat => ({
+      const mappedChats = chatsResponse.data.map(chat => ({
         id: chat.id,
         users: [{
           id: chat.userId,
@@ -456,21 +456,21 @@ export class MessengerService {
         proxyPassword: decryptedProxyPassword,
       };
 
-      const messages = await this.parserAdapter.getMessages(parserAccount, chatId);
+      const messagesResponse = await this.parserAdapter.getMessages(parserAccount, chatId);
 
       // Обновляем cookies
-      if (messages.cookies && messages.cookies !== account.cookies) {
+      if (messagesResponse.cookies && messagesResponse.cookies !== account.cookies) {
         await this.prisma.avito.update({
           where: { id: account.id },
           data: {
-            cookies: messages.cookies,
+            cookies: messagesResponse.cookies,
             lastBrowserSession: new Date(),
           },
         });
       }
 
       // Преобразуем формат
-      const mappedMessages = messages.data.map(msg => ({
+      const mappedMessages = messagesResponse.data.map(msg => ({
         id: msg.id,
         author_id: msg.author_id,
         content: { text: msg.content },
@@ -517,14 +517,14 @@ export class MessengerService {
         proxyPassword: decryptedProxyPassword,
       };
 
-      const result = await this.parserAdapter.sendMessage(parserAccount, chatId, message);
+      const sendResult = await this.parserAdapter.sendMessage(parserAccount, chatId, message);
 
       // Обновляем cookies
-      if (result.cookies && result.cookies !== account.cookies) {
+      if (sendResult.cookies && sendResult.cookies !== account.cookies) {
         await this.prisma.avito.update({
           where: { id: account.id },
           data: {
-            cookies: result.cookies,
+            cookies: sendResult.cookies,
             lastBrowserSession: new Date(),
           },
         });
