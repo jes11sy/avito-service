@@ -91,7 +91,7 @@ export class OAuthController {
       }
 
       // Проверяем что аккаунт существует
-      const account = await this.prisma.avitoAccount.findUnique({
+      const account = await this.prisma.avito.findUnique({
         where: { id: accountId },
       });
 
@@ -160,7 +160,7 @@ export class OAuthController {
   @ApiParam({ name: 'accountId', description: 'ID аккаунта' })
   async refreshToken(@Param('accountId') accountId: string) {
     try {
-      const account = await this.prisma.avitoAccount.findUnique({
+      const account = await this.prisma.avito.findUnique({
         where: { id: parseInt(accountId) },
       });
 
