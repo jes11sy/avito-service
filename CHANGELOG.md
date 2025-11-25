@@ -1,5 +1,73 @@
 # Changelog - Avito Service
 
+## [3.0.0] - OAuth Migration - 2025-01-XX
+
+### 🚨 BREAKING CHANGES
+
+#### OAuth 2.0 Authorization
+- **REMOVED** `client_credentials` authorization (персональные API ключи)
+- **ADDED** OAuth 2.0 `authorization_code` flow
+- All accounts must be re-authorized via OAuth
+
+#### Why OAuth?
+- ✅ **Free** (персональные ключи стали платными на Avito)
+- ✅ More secure (automatic token refresh)
+- ✅ Better control (users approve access)
+- ✅ One app for multiple users
+
+### ✨ New Features
+
+#### OAuth Module
+- `GET /api/v1/oauth/avito/authorize/:accountId` - Start OAuth flow
+- `GET /api/v1/oauth/avito/callback` - OAuth callback handler
+- `GET /api/v1/oauth/avito/refresh/:accountId` - Manual token refresh
+- Automatic token refresh on API calls
+- State parameter for CSRF protection
+
+#### Token Management
+- `clientId` now stores `access_token` (OAuth)
+- `clientSecret` now stores `refresh_token` (OAuth)
+- Automatic token refresh when expired
+- Token lifetime: 24 hours (access), 1 year (refresh)
+
+### 🔧 Technical Changes
+
+#### Environment Variables (NEW - REQUIRED)
+```env
+AVITO_OAUTH_CLIENT_ID=your_client_id
+AVITO_OAUTH_CLIENT_SECRET=your_client_secret
+AVITO_OAUTH_REDIRECT_URI=https://api.lead-shem.ru/api/v1/oauth/avito/callback
+AVITO_OAUTH_SCOPES=messenger:read,messenger:write,user:read,items:info
+```
+
+#### Modified Services
+- `avito-api.service.ts` - Removed `client_credentials`, now uses OAuth tokens directly
+- `oauth.service.ts` - New service for OAuth flow management
+- `oauth.controller.ts` - New controller for OAuth endpoints
+
+#### Database
+- No schema changes required
+- `clientId` = `access_token` (long JWT string)
+- `clientSecret` = `refresh_token` (long string)
+
+### 📝 Migration Guide
+
+See `OAUTH_MIGRATION.md` for detailed migration instructions.
+
+**Quick steps:**
+1. Register app at https://developers.avito.ru/applications
+2. Add OAuth credentials to `.env`
+3. Restart service
+4. Re-authorize all accounts via `/oauth/avito/authorize/:accountId`
+
+### 🔒 Security Improvements
+- OAuth 2.0 standard compliance
+- CSRF protection with state parameter
+- Automatic token rotation
+- Refresh tokens valid for 1 year
+
+---
+
 ## [2.0.0] - Expansion Release
 
 ### ✨ New Features

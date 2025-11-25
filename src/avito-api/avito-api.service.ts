@@ -13,11 +13,6 @@ interface ProxyConfig {
   };
 }
 
-interface AvitoTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-}
 
 export interface AvitoAccountInfo {
   id: number;
@@ -65,12 +60,10 @@ export class AvitoApiService {
   private readonly logger = new Logger(AvitoApiService.name);
   private readonly baseUrl = 'https://api.avito.ru';
   private axiosInstance: AxiosInstance;
-  private accessToken: string | null = null;
-  private tokenExpiresAt: Date | null = null;
 
   constructor(
-    private clientId: string,
-    private clientSecret: string,
+    private clientId: string, // В OAuth режиме это access_token
+    private clientSecret: string, // В OAuth режиме это refresh_token
     private proxyConfig?: ProxyConfig,
   ) {
     this.axiosInstance = this.createAxiosInstance();
@@ -109,39 +102,16 @@ export class AvitoApiService {
   }
 
   /**
-   * Получить access token
+   * Получить access token (OAuth)
+   * clientId теперь содержит access_token напрямую
    */
   async getAccessToken(): Promise<string> {
-    // Проверяем, есть ли валидный токен
-    if (this.accessToken && this.tokenExpiresAt && this.tokenExpiresAt > new Date()) {
-      return this.accessToken;
+    // В OAuth режиме clientId = access_token
+    if (!this.clientId) {
+      throw new Error('Access token not found. Please authorize via OAuth first.');
     }
 
-    try {
-      const response = await this.axiosInstance.post<AvitoTokenResponse>(
-        '/token',
-        new URLSearchParams({
-          grant_type: 'client_credentials',
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        }
-      );
-
-      this.accessToken = response.data.access_token;
-      this.tokenExpiresAt = new Date(Date.now() + response.data.expires_in * 1000);
-
-      this.logger.log('Access token obtained successfully');
-
-      return this.accessToken;
-    } catch (error: any) {
-      this.logger.error(`Failed to get access token: ${error.message}`);
-      throw new Error(`Avito API token error: ${error.response?.data?.error || error.message}`);
-    }
+    return this.clientId;
   }
 
   /**

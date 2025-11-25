@@ -45,12 +45,18 @@
 
 ## API Endpoints
 
+### OAuth Authorization
+
+- `GET /api/v1/auth/avito/authorize/:accountId` - Начать OAuth авторизацию (редирект на Avito)
+- `GET /api/v1/auth/avito/callback` - Callback от Avito (автоматически обрабатывается)
+- `GET /api/v1/auth/avito/refresh/:accountId` - Обновить токен вручную
+
 ### Accounts Management
 
 #### Аккаунты
 - `GET /api/v1/accounts` - Получить все аккаунты
 - `GET /api/v1/accounts/:id` - Получить аккаунт по ID
-- `POST /api/v1/accounts` - Создать аккаунт
+- `POST /api/v1/accounts` - Создать аккаунт (без токенов, OAuth потом)
 - `PUT /api/v1/accounts/:id` - Обновить аккаунт
 - `DELETE /api/v1/accounts/:id` - Удалить аккаунт
 
@@ -100,20 +106,45 @@ JWT_SECRET=your-secret-key
 PORT=5004
 CORS_ORIGIN=https://test-shem.ru,https://callcentre.test-shem.ru
 
+# Avito OAuth (required)
+AVITO_OAUTH_CLIENT_ID=
+AVITO_OAUTH_CLIENT_SECRET=
+AVITO_OAUTH_REDIRECT_URI=
+AVITO_OAUTH_SCOPES=messenger:read,messenger:write,user:read,items:info,stats:read
+
 # Optional
 NODE_ENV=production
 ```
 
-## Пример создания аккаунта
+## OAuth Авторизация (обязательно)
+
+### Шаг 1: Регистрация приложения на Avito
+
+1. Перейдите на https://developers.avito.ru/applications
+2. Зарегистрируйте приложение:
+   - **Имя приложения**: Ваше название
+   - **Redirect URI**: `https://api.lead-shem.ru/api/v1/auth/avito/callback`
+   - **Scopes**: `messenger:read,messenger:write,user:read,items:info,stats:read,user_balance:read`
+   - **Описание**: Для чего используется приложение
+3. Получите `CLIENT_ID` и `CLIENT_SECRET`
+4. Добавьте их в `.env`:
+
+```env
+AVITO_OAUTH_CLIENT_ID=your_client_id
+AVITO_OAUTH_CLIENT_SECRET=your_client_secret
+AVITO_OAUTH_REDIRECT_URI=https://api.lead-shem.ru/api/v1/oauth/avito/callback
+```
+
+### Шаг 2: Создание аккаунта
+
+Создайте аккаунт **без** `clientId` и `clientSecret` (они заполнятся после OAuth):
 
 ```bash
-curl -X POST https://api.test-shem.ru/api/v1/accounts \
+curl -X POST https://api.lead-shem.ru/api/v1/accounts \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Мой аккаунт Avito",
-    "clientId": "YOUR_CLIENT_ID",
-    "clientSecret": "YOUR_CLIENT_SECRET",
     "userId": "12345",
     "proxyType": "http",
     "proxyHost": "proxy.example.com",
@@ -123,6 +154,56 @@ curl -X POST https://api.test-shem.ru/api/v1/accounts \
     "eternalOnlineEnabled": true,
     "onlineKeepAliveInterval": 300
   }'
+```
+
+**Ответ:**
+```json
+{
+  "id": 1,
+  "name": "Мой аккаунт Avito",
+  "clientId": null,
+  "clientSecret": null,
+  ...
+}
+```
+
+### Шаг 3: OAuth авторизация
+
+Перейдите по ссылке для авторизации аккаунта:
+
+```
+https://api.lead-shem.ru/api/v1/auth/avito/authorize/1
+```
+
+Где `1` - это ID созданного аккаунта.
+
+**Что происходит:**
+1. Вы будете перенаправлены на Avito
+2. Авторизуетесь и подтверждаете доступ
+3. Avito перенаправит обратно на ваш сервер
+4. Токены автоматически сохранятся в аккаунт
+5. Вы будете перенаправлены на фронтенд с результатом
+
+### Шаг 4: Проверка
+
+После OAuth аккаунт будет содержать токены:
+
+```json
+{
+  "id": 1,
+  "name": "Мой аккаунт Avito",
+  "clientId": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...", // access_token
+  "clientSecret": "def50200a1b2c3d4e5f6...", // refresh_token
+  "connectionStatus": "connected"
+}
+```
+
+### Обновление токена
+
+Токены автоматически обновляются при запросах к API. Для ручного обновления:
+
+```bash
+curl https://api.lead-shem.ru/api/v1/auth/avito/refresh/1
 ```
 
 ## Proxy Configuration
